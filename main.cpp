@@ -131,7 +131,7 @@ int main(int argc, char **argv) {
 }
 
 void packet_handler(u_char *param,const struct pcap_pkthdr *header, const u_char *pkt_data) {
-    print_packet_data(header, pkt_data);
+    print_packet_data(header, pkt_data); 
 }
 
 void print_packet_data(const struct pcap_pkthdr *header, const u_char *pkt_data){
@@ -158,11 +158,8 @@ void print_packet_data(const struct pcap_pkthdr *header, const u_char *pkt_data)
     printf("\n\n");
 
 
-	unsigned char a, line[17], c;
-    int Size = header->caplen;
-    int i;
-	int j;
-
+	unsigned c;
+    int i, j, Size = header->caplen;
 	for (i = 0; i < Size; i++)	{
 		c = pkt_data[i];
         if(i!=0&&i%8==0){
