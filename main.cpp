@@ -12,18 +12,19 @@ typedef struct DnsMessageHeader{
     short ID;
 
      //Start of second row which is broken into 2 bytes
-    unsigned char QR : 1;
-    unsigned char OPCODE : 4;
-    unsigned char AA : 1;
-    unsigned char TC : 1;
     unsigned char RD : 1;
+    unsigned char TC : 1;
+    unsigned char AA : 1;
+    unsigned char OPCODE : 4;
+    unsigned char QR : 1;
 
     // Start of Second byte needed for row 2
-    unsigned char RA : 1;
-    unsigned char Z : 1;
-    unsigned char AD : 1;
-    unsigned char CD : 1;
+
     unsigned char RCODE : 4;
+    unsigned char CD : 1;
+    unsigned char AD : 1;
+    unsigned char Z : 1;
+    unsigned char RA : 1;
 
     // End Second row
     short QDCNT;
