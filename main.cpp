@@ -14,62 +14,10 @@
 
 #include <pcap.h>
 
-
-
-#include <linux/if_ether.h>
-
-typedef struct ip_address {
-	u_char byte1;
-	u_char byte2;
-	u_char byte3;
-	u_char byte4;
-}ip_address;
-
-typedef struct ip_header{
-	u_char ver_ihl; // Version (4 bits) + Internet header length (4 bits)  
-	u_char tos; // Type of service   
-	u_short tlen; // Total length   
-	u_short identification; // Identification  
-	u_short flags_fo; // Flags (3 bits) + Fragment offset (13 bits)  
-	u_char ttl; // Time to live  
-	u_char proto; // Protocol  
-	u_short crc; // Header checksum  
-	ip_address saddr; // Source address  
-	ip_address daddr; // Destination address  
-	u_int op_pad; // Option + Padding  
-}ip_header;
-
-typedef struct udp_header {
-	u_short sport;   // Source port  
-	u_short dport;   // Destination port  
-	u_short len;   // Datagram length  
-	u_short crc;   // Checksum  
-}udp_header;
-
-typedef struct DnsMessageHeader{
-    short ID;
-
-    unsigned char RD : 1;
-    unsigned char TC : 1;
-    unsigned char AA : 1;
-    unsigned char OPCODE : 4;
-    unsigned char QR : 1;
-
-    unsigned char RCODE : 4;
-    unsigned char CD : 1;
-    unsigned char AD : 1;
-    unsigned char Z : 1;
-    unsigned char RA : 1;
-
-    short QDCNT;
-    short ANCNT;
-    short NSCNT;
-    short ARCNT;
-} dns_header;
+#include "protocol.hpp"
 
 void packet_handler(u_char *param,const struct pcap_pkthdr *header, const u_char *pkt_data);
 void print_packet_data(const struct pcap_pkthdr *header, const u_char *pkt_data);
-
 
 int main(int argc, char **argv) {
     struct bpf_program fcode;
@@ -82,7 +30,11 @@ int main(int argc, char **argv) {
     int i = 0;
     int no;
 
-    const char * filter = "port 53 and ((udp and (not udp[10] & 128 = 0)) or (tcp and (not tcp[((tcp[12] & 0xf0) >> 2) + 2] & 128 = 0)))";
+    /*
+        첫번째 필터는 DNS서버로 보낸거 두번째 필터는 DNS 서버에서 온것
+    */
+    const char * filter = "port 53 and ((udp and (udp[10] & 128 = 0)) or (tcp and (tcp[((tcp[12] & 0xf0) >> 2) + 2] & 128 = 0)))";
+    // const char * filter = "port 53 and ((udp and (not udp[10] & 128 = 0)) or (tcp and (not tcp[((tcp[12] & 0xf0) >> 2) + 2] & 128 = 0)))";
 
     if (pcap_findalldevs(&alldevs, errbuf) < 0) {
         printf("pcap_findalldevs error\n");
@@ -131,12 +83,50 @@ int main(int argc, char **argv) {
 }
 
 void packet_handler(u_char *param,const struct pcap_pkthdr *header, const u_char *pkt_data) {
-    print_packet_data(header, pkt_data); 
+    ether_header *eth;
+    ip_header *ip;
+    udp_header *udp;
+    dns_header *dns;
+
+    eth = (ether_header*)(pkt_data);
+    ip = (ip_header*)(pkt_data+sizeof(ether_header));
+    udp = (udp_header*)(pkt_data+sizeof(ether_header)+sizeof(ip_header));
+    dns = (dns_header*)(pkt_data + 42);
+
+    print_packet_data(header, pkt_data);
+
+    printf("\n\n");
 }
 
 void print_packet_data(const struct pcap_pkthdr *header, const u_char *pkt_data){
-    dns_header *dns_hdr;
-    dns_hdr = (dns_header*)(pkt_data + 42);
+    ether_header *eth = (ether_header*)(pkt_data);
+    ip_header *ip = (ip_header*)(pkt_data+sizeof(ether_header));
+    udp_header *udp = (udp_header*)(pkt_data+(sizeof(ether_header)+sizeof(ip_header)-4));
+    dns_header *dns_hdr =  (dns_header*)(pkt_data + 42);
+    
+    // Ethernet header
+    printf("Ether Header\n");
+    printf(" | -Destination Address : %.2X:%.2X:%.2X:%.2X:%.2X:%.2X\n",
+           eth->dst_host[0], eth->dst_host[1], eth->dst_host[2],
+           eth->dst_host[3], eth->dst_host[4], eth->dst_host[5]);
+    printf(" | -Source Address : %.2X:%.2X:%.2X:%.2X:%.2X:%.2X\n",
+           eth->src_host[0], eth->src_host[1], eth->src_host[2],
+           eth->src_host[3], eth->src_host[4], eth->src_host[5]);
+    printf(" | -Protocol : 0x%.4x\n", ntohs(eth->frame_type));
+    
+    // IP Header
+    printf("IP Header\n");
+    printf(" | -Source IPaddress : %d.%d.%d.%d\n", ip->saddr.byte1,
+           ip->saddr.byte2, ip->saddr.byte3, ip->saddr.byte4);
+    printf(" | -Destination IPaddress : %d.%d.%d.%d\n", ip->daddr.byte1,
+           ip->daddr.byte2, ip->daddr.byte3, ip->daddr.byte4);
+
+    // UDP Header
+    printf( "UDP Header\n");
+    printf(" | -Source Port : %d\n", ntohs(udp->sport));
+    printf(" | -Destionation Port : %d\n", ntohs(udp->dport));
+
+    // DNS Header
     printf("DNS Header\n");
     printf(" | -ID : %.2x\n", ntohs(dns_hdr->ID));
 
