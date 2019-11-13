@@ -16,10 +16,33 @@
 
 #include "protocol.hpp"
 
+char domain[1024];
+
+int packet_capture_start(void);
 void packet_handler(u_char *param,const struct pcap_pkthdr *header, const u_char *pkt_data);
 void print_packet_data(const struct pcap_pkthdr *header, const u_char *pkt_data);
+void make_domain(const struct pcap_pkthdr *header, const u_char *pkt_data, char* result);
 
 int main(int argc, char **argv) {
+    if (argc != 5) {
+        // printf("./main <interface> <domain_to_spoof> <ip_to_spoof> <target_ip> <gateway_ip>\n");
+        printf("./main <domain_to_spoof> <ip_to_spoof> <target_ip> <gateway_ip>\n");
+        return 0;
+    }
+
+    strncpy(domain, argv[1], 60);
+
+
+    int err_code = packet_capture_start();
+    if(err_code < 0){
+        printf("error!! exit program...");
+        return 0;
+    }
+
+    return 0;
+}
+
+int packet_capture_start(){
     struct bpf_program fcode;
     bpf_u_int32 mask;
     pcap_t *adhandle;
@@ -30,15 +53,14 @@ int main(int argc, char **argv) {
     int i = 0;
     int no;
 
-    /*
-        첫번째 필터는 DNS서버로 보낸거 두번째 필터는 DNS 서버에서 온것
-    */
+
+    // 첫번째 필터는 DNS서버로 보낸거 두번째 필터는 DNS 서버에서 온것
     const char * filter = "port 53 and ((udp and (udp[10] & 128 = 0)) or (tcp and (tcp[((tcp[12] & 0xf0) >> 2) + 2] & 128 = 0)))";
     // const char * filter = "port 53 and ((udp and (not udp[10] & 128 = 0)) or (tcp and (not tcp[((tcp[12] & 0xf0) >> 2) + 2] & 128 = 0)))";
 
     if (pcap_findalldevs(&alldevs, errbuf) < 0) {
         printf("pcap_findalldevs error\n");
-        return 1;
+        return -1;
     }
 
     for (d=alldevs; d; d=d->next) {
@@ -50,7 +72,7 @@ int main(int argc, char **argv) {
 
     if (!(no > 0 && no <= i)) {
         printf("number error\n");
-        return 2;
+        return -2;
     }
 
     for (d=alldevs, i=0; d; d=d->next) {
@@ -62,27 +84,37 @@ int main(int argc, char **argv) {
     if (!(adhandle= pcap_open_live(d->name, 65536, 1, 1000, errbuf))) {
         printf("pcap_open_live error %s\n", d->name);
         pcap_freealldevs(alldevs);
-        return 3;
+        return -3;
     }
 
 	if (pcap_compile(adhandle, &fcode, filter, 1, mask) == -1) {
 		fprintf(stderr, "ERROR: %s\n", pcap_geterr(adhandle));
-        return 4;
+        return -4;
 	}
 
 	if (pcap_setfilter(adhandle, &fcode) == -1) {
 		fprintf(stderr, "ERROR: %s\n", pcap_geterr(adhandle));
-		return 5;
+		return -5;
 	}
 
     pcap_freealldevs(alldevs);
     pcap_loop(adhandle, 0, packet_handler, NULL);
     pcap_close(adhandle);
-
-    return 0;
 }
 
 void packet_handler(u_char *param,const struct pcap_pkthdr *header, const u_char *pkt_data) {
+    char extract_domain[1024];
+    memset(extract_domain, 0x00, 1024);
+    make_domain(header, pkt_data, extract_domain);
+
+    if(strstr(domain, extract_domain)!=NULL){
+        printf("target domain captured!\n");
+    }else{
+        printf("%s %s\n", domain, extract_domain);
+    }
+}
+
+void make_domain(const struct pcap_pkthdr *header, const u_char *pkt_data, char *result){
     ether_header *eth;
     ip_header *ip;
     udp_header *udp;
@@ -93,9 +125,31 @@ void packet_handler(u_char *param,const struct pcap_pkthdr *header, const u_char
     udp = (udp_header*)(pkt_data+sizeof(ether_header)+sizeof(ip_header));
     dns = (dns_header*)(pkt_data + 42);
 
-    print_packet_data(header, pkt_data);
+    char dns_data[1024];
+    memset(dns_data, 0x00, 1024);
 
-    printf("\n\n");
+    for(int i=0;i<header->caplen;i++){
+        dns_data[i] = (unsigned int)pkt_data[i+54];
+    }
+
+    int size_before_dot = dns_data[0];
+    int index = 0;
+    int size_index = 1;
+
+    while(size_before_dot > 0) {
+        int i=0;
+
+        while(i < size_before_dot) {
+            result[index++] = dns_data[i+size_index];
+            i++;
+        }
+
+        result[index++]='.';
+        size_index=size_index+size_before_dot;
+        size_before_dot = dns_data[size_index++];
+    }
+
+    result[--index]='\0';
 }
 
 void print_packet_data(const struct pcap_pkthdr *header, const u_char *pkt_data){
@@ -125,11 +179,12 @@ void print_packet_data(const struct pcap_pkthdr *header, const u_char *pkt_data)
     printf( "UDP Header\n");
     printf(" | -Source Port : %d\n", ntohs(udp->sport));
     printf(" | -Destionation Port : %d\n", ntohs(udp->dport));
+    printf(" | -Length : %d\n", ntohs(udp->len));
+    printf(" | -Checksum : %d\n", ntohs(udp->crc));
 
     // DNS Header
     printf("DNS Header\n");
     printf(" | -ID : %.2x\n", ntohs(dns_hdr->ID));
-
     printf(" | -QR : % d\n", (unsigned int)dns_hdr->QR);
     printf(" | -OPCODE : % d\n", (unsigned int)dns_hdr->OPCODE);
     printf(" | -AA : %d\n", (unsigned int)dns_hdr->AA);
@@ -140,7 +195,6 @@ void print_packet_data(const struct pcap_pkthdr *header, const u_char *pkt_data)
     printf(" | -AD : %d\n", (unsigned int)dns_hdr->AD);
     printf(" | -CD : %d\n", (unsigned int)dns_hdr->CD);
     printf(" | -RCODE : %d\n", (unsigned int)dns_hdr->RCODE);
-
     printf(" | -QDCNT : %d\n", ntohs(dns_hdr->QDCNT));
     printf(" | -ANCNT : %d\n", ntohs(dns_hdr->ANCNT));
     printf(" | -NSCNT : %d\n", ntohs(dns_hdr->NSCNT));

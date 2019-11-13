@@ -18,24 +18,24 @@ typedef struct ip_address {
 }ip_address;
 
 typedef struct ip_header{
-	u_char ver_ihl; // Version (4 bits) + Internet header length (4 bits)  
-	u_char tos; // Type of service   
-	u_short tlen; // Total length   
-	u_short identification; // Identification  
-	u_short flags_fo; // Flags (3 bits) + Fragment offset (13 bits)  
-	u_char ttl; // Time to live  
-	u_char proto; // Protocol  
-	u_short crc; // Header checksum  
-	ip_address saddr; // Source address  
-	ip_address daddr; // Destination address  
-	u_int op_pad; // Option + Padding  
+	u_char ver_ihl;
+	u_char tos;
+	u_short tlen;
+	u_short identification;
+	u_short flags_fo;
+	u_char ttl;
+    u_char proto;
+	u_short crc;
+	ip_address saddr;
+	ip_address daddr; 
+	u_int op_pad;
 }ip_header;
 
 typedef struct udp_header {
-	u_short sport;   // Source port  
-	u_short dport;   // Destination port  
-	u_short len;   // Datagram length  
-	u_short crc;   // Checksum  
+	u_short sport;   
+	u_short dport;
+	u_short len;
+	u_short crc;
 }udp_header;
 
 typedef struct DnsMessageHeader{
@@ -57,17 +57,6 @@ typedef struct DnsMessageHeader{
     short ANCNT;
     short NSCNT;
     short ARCNT;
-} dns_header;
-
-struct dns_request {
-    ether_header *ether_hdr;
-    ip_header *ip_hdr;
-    udp_header *udp_hdr;
-    dns_header *dnshdr;
-    char *dnsdata;
-    char *request_domain;
-    int port;
-};
-
+}dns_header;
 
 #endif
