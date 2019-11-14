@@ -5,37 +5,36 @@
 #include <sys/types.h>
 
 typedef struct ether_header{
-	u_char dst_host[6];
-	u_char src_host[6];
-	u_short frame_type;
+	unsigned char dst_host[6];
+	unsigned char src_host[6];
+	unsigned short frame_type;
 }ether_header;
 
 typedef struct ip_address {
-	u_char byte1;
-	u_char byte2;
-	u_char byte3;
-	u_char byte4;
+	unsigned char byte1;
+	unsigned char byte2;
+	unsigned char byte3;
+	unsigned char byte4;
 }ip_address;
 
 typedef struct ip_header{
-	u_char ver_ihl;
-	u_char tos;
-	u_short tlen;
-	u_short identification;
-	u_short flags_fo;
-	u_char ttl;
-    u_char proto;
-	u_short crc;
+	unsigned char ver_ihl;
+	unsigned char tos;
+	unsigned short tlen;
+	unsigned short identification;
+	unsigned short flags_fo;
+	unsigned char ttl;
+    unsigned char proto;
+	unsigned short crc;
 	ip_address saddr;
 	ip_address daddr; 
-	u_int op_pad;
 }ip_header;
 
 typedef struct udp_header {
-	u_short sport;   
-	u_short dport;
-	u_short len;
-	u_short crc;
+	unsigned short sport;   
+	unsigned short dport;
+	unsigned short len;
+	unsigned short crc;
 }udp_header;
 
 typedef struct DnsMessageHeader{
