@@ -56,6 +56,9 @@ typedef struct DnsMessageHeader{
     short ANCNT;
     short NSCNT;
     short ARCNT;
+
+	short TYPE;
+	short CLASS;
 }dns_header;
 
 #endif
