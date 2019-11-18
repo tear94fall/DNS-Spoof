@@ -15,7 +15,6 @@ int packet_capture_start(void);
 void packet_handler(u_char *param,const struct pcap_pkthdr *header, const u_char *pkt_data);
 void print_packet_data(const struct pcap_pkthdr *header, const u_char *pkt_data);
 void make_domain(const struct pcap_pkthdr *header, const u_char *pkt_data, char* result);
-void dns_response(void);
 
 int packet_capture_start(){
     struct bpf_program fcode;
@@ -79,7 +78,6 @@ int packet_capture_start(){
     printf("│Info│ source ip       │ sport │ destination ip  │ dport │ Data size │   ID   │Q&A│   information   │\n");
     printf("├────┼─────────────────┼───────┼─────────────────┼───────┼───────────┼────────┼───┼─────────────────┤\n");
 
-    //  ─ │ ┌ ┐ ┘ └ ├ ┬ ┤ ┴ ┼
     pcap_freealldevs(alldevs);
     pcap_loop(adhandle, 0, packet_handler, NULL);
     pcap_close(adhandle);
@@ -120,7 +118,6 @@ void packet_handler(u_char *param,const struct pcap_pkthdr *header, const u_char
         
         snprintf(source_ip, sizeof(source_ip), "%d.%d.%d.%d", ip->saddr.byte1, ip->saddr.byte2, ip->saddr.byte3, ip->saddr.byte4);
         snprintf(dest_ip, sizeof(dest_ip), "%d.%d.%d.%d", ip->daddr.byte1, ip->daddr.byte2, ip->daddr.byte3, ip->daddr.byte4);
-        //  127.0.01 > 127.0.01:  16325+ A? www.abc.com
         printf("│Recv│ %-16s│ %-5d │ %-16s│ %-5d │ %3d Bytes │ 0x%-4x │ Q │ %-16s│\n", source_ip, sport, dest_ip, dport, header->caplen,dns_id, display_domain);
 
         unsigned char dns_response[1024];
@@ -191,7 +188,7 @@ void packet_handler(u_char *param,const struct pcap_pkthdr *header, const u_char
         udp->dport = temp_port; 
         udp->len = htons(sizeof(udp_header) + full_size);
 
-        udp->crc = 0;  // checksum not validated
+        udp->crc = 0;
 
         memcpy(&dns_response[0], (char *)ip, sizeof(ip_header));
         memcpy(&dns_response[sizeof(ip_header)], (char *)udp, sizeof(udp_header));
@@ -219,13 +216,9 @@ void packet_handler(u_char *param,const struct pcap_pkthdr *header, const u_char
         if(result < 0) {
             printf("error sending udp %d\n", result);
         }
-
-     // printf("│Recv│ %-16s│ %-5d │ %-16s│ %-5d │ %3d Bytes │ %04d │ Q │ %-16s│\n", source_ip, sport, dest_ip, dport, header->caplen,dns_id, display_domain);
+        
         printf("│Send│ %-16s│ %-5d │ %-16s│ %-5d │ %3d Bytes │ 0x%-4x │ A │ %-16s│\n", dest_ip, dport, source_ip, sport, full_size,dns_id, fake_webserver_ip);
         printf("├────┼─────────────────┼───────┼─────────────────┼───────┼───────────┼────────┼───┼─────────────────┤\n");
-        // printf("sent %d bytes\n", result);
-    }else{
-        // printf("%s %s\n", domain, extract_domain);
     }
 }
 
@@ -322,7 +315,6 @@ void print_packet_data(const struct pcap_pkthdr *header, const u_char *pkt_data)
 
     printf("\n\n");
 
-
 	unsigned c;
     int i, j, Size = header->caplen;
 	for (i = 0; i < Size; i++)	{
@@ -336,8 +328,4 @@ void print_packet_data(const struct pcap_pkthdr *header, const u_char *pkt_data)
         }
         printf("%.2x ", (unsigned int)c);
 	}printf("\n\n");
-}
-
-void dns_response(void){
-
 }

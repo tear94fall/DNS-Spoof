@@ -1,8 +1,8 @@
 DIR=/usr/local
 TEST_FILE=unittest
 
-dnspoof.o:
-	gcc main.cpp -o main -lnet -lpcap -lpthread -std=c++11
+main:
+	gcc main.cpp -o main -lnet -lpcap -lpthread -std=c++11 -lstdc++
 
 test:
 	g++ -o ${TEST_FILE} unittest.cpp -isystem -I${DIR}/include -L${DIR}/lib -pthread -lgtest -lpcap -std=c++11
