@@ -23,14 +23,11 @@ int packet_capture_start(){
     char errbuf[PCAP_ERRBUF_SIZE];
     pcap_if_t *alldevs;
     pcap_if_t *d;
-    struct pcap_addr *a;
     int i = 0;
     int no;
 
-
-    // 첫번째 필터는 DNS서버로 보낸거 두번째 필터는 DNS 서버에서 온것
-    const char * filter = "port 53 and ((udp and (udp[10] & 128 = 0)) or (tcp and (tcp[((tcp[12] & 0xf0) >> 2) + 2] & 128 = 0)))";
-    // const char * filter = "port 53 and ((udp and (not udp[10] & 128 = 0)) or (tcp and (not tcp[((tcp[12] & 0xf0) >> 2) + 2] & 128 = 0)))";
+    const char * filter = "port 53 and (udp and (udp[10] & 128 = 0))";     // Recv
+    // const char * filter = "port 53 and (udp and (not udp[10] & 128 = 0))";  // Send
 
     if (pcap_findalldevs(&alldevs, errbuf) < 0) {
         printf("pcap_findalldevs error\n");
@@ -46,7 +43,7 @@ int packet_capture_start(){
     printf("\n"); 
 
     if (!(no > 0 && no <= i)) {
-        printf("number error\n");
+        printf("Couldn't find this device");
         return -2;
     }
 
@@ -56,8 +53,8 @@ int packet_capture_start(){
         }
     }
 
-    if (!(adhandle= pcap_open_live(d->name, 65536, 1, 1000, errbuf))) {
-        printf("pcap_open_live error %s\n", d->name);
+    if (!(adhandle=pcap_open_live(d->name, 65536, 1, 1000, errbuf))) {
+		fprintf(stderr, "ERROR: %s\n", pcap_geterr(adhandle));
         pcap_freealldevs(alldevs);
         return -3;
     }
