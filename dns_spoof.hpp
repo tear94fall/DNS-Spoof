@@ -5,6 +5,8 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <pcap.h>
+#include <vector>
+#include <utility>
 
 #include "protocol.hpp"
 
@@ -24,7 +26,6 @@ int packet_capture_start(){
     pcap_if_t *alldevs;
     pcap_if_t *d;
     int i = 0;
-    int no;
 
     const char * filter = "port 53 and (udp and (udp[10] & 128 = 0))";     // Recv
     // const char * filter = "port 53 and (udp and (not udp[10] & 128 = 0))";  // Send
@@ -34,26 +35,35 @@ int packet_capture_start(){
         return -1;
     }
 
-    for (d=alldevs; d; d=d->next) {
-        printf("%d :  %s\n", ++i, (d->description)?(d->description):(d->name));
-    }
+    std::vector<char*> interface_list;
 
+	for (d = alldevs; d; d = d->next) {
+        if(d->next==NULL){
+            break;
+        }
+
+        adhandle = pcap_open_live(d->name, 1000, 1, 300, errbuf);
+		if (pcap_datalink(adhandle) == DLT_EN10MB && d->addresses != NULL) {
+            interface_list.push_back(d->name);
+		}
+        pcap_close(adhandle);
+	}
+
+	for (int i = 0; i < interface_list.size(); i++) {
+        printf("%d : %s\n", i+1, interface_list[i]);
+	}
+    
+    int select_interface_number;
 	printf("Enter the interface number you would like to sniff : ");
-	scanf("%d", &no);
+	scanf("%d", &select_interface_number);
     printf("\n"); 
 
-    if (!(no > 0 && no <= i)) {
-        printf("Couldn't find this device");
+    if(select_interface_number <1 || select_interface_number > interface_list.size()){
+        printf("Network interface out of range\n");
         return -2;
     }
 
-    for (d=alldevs, i=0; d; d=d->next) {
-        if (no == ++i){
-            break;
-        }
-    }
-
-    if (!(adhandle=pcap_open_live(d->name, 65536, 1, 1000, errbuf))) {
+    if (!(adhandle=pcap_open_live(interface_list[select_interface_number-1], 65536, 1, 1000, errbuf))) {
 		fprintf(stderr, "ERROR: %s\n", pcap_geterr(adhandle));
         pcap_freealldevs(alldevs);
         return -3;
@@ -70,7 +80,7 @@ int packet_capture_start(){
 	}
 
     printf("┌───────────────────────────────────────────────────────────────────────────────────────────────────┐\n");
-    printf("│ dns-spoofing: linstening on %d [udp dst port 53 and not src %15s]                       │\n", no, fake_webserver_ip);
+    printf("│ dns-spoofing: linstening on %d [udp dst port 53 and not src %15s]                       │\n", select_interface_number, fake_webserver_ip);
     printf("├────┬─────────────────┬───────┬─────────────────┬───────┬───────────┬────────┬───┬─────────────────┤\n");
     printf("│Info│ source ip       │ sport │ destination ip  │ dport │ Data size │   ID   │Q&A│   information   │\n");
     printf("├────┼─────────────────┼───────┼─────────────────┼───────┼───────────┼────────┼───┼─────────────────┤\n");
