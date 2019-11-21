@@ -83,8 +83,9 @@ int packet_capture_start(){
     printf("│ dns-spoofing: linstening on %d [udp dst port 53 and not src %15s]                       │\n", select_interface_number, fake_webserver_ip);
     printf("├────┬─────────────────┬───────┬─────────────────┬───────┬───────────┬────────┬───┬─────────────────┤\n");
     printf("│Info│ source ip       │ sport │ destination ip  │ dport │ Data size │   ID   │Q&A│   information   │\n");
-    printf("├────┼─────────────────┼───────┼─────────────────┼───────┼───────────┼────────┼───┼─────────────────┤\n");
-
+    printf("└────┴─────────────────┴───────┴─────────────────┴───────┴───────────┴────────┴───┴─────────────────┘");
+    fflush(stdout);
+    
     pcap_freealldevs(alldevs);
     pcap_loop(adhandle, 0, packet_handler, NULL);
     pcap_close(adhandle);
@@ -125,6 +126,12 @@ void packet_handler(u_char *param,const struct pcap_pkthdr *header, const u_char
         
         snprintf(source_ip, sizeof(source_ip), "%d.%d.%d.%d", ip->saddr.byte1, ip->saddr.byte2, ip->saddr.byte3, ip->saddr.byte4);
         snprintf(dest_ip, sizeof(dest_ip), "%d.%d.%d.%d", ip->daddr.byte1, ip->daddr.byte2, ip->daddr.byte3, ip->daddr.byte4);
+
+        for (int j = 0; j < 101 ; j++) {
+            printf("\b \b");
+        }
+
+        printf("├────┼─────────────────┼───────┼─────────────────┼───────┼───────────┼────────┼───┼─────────────────┤\n");
         printf("│Recv│ %-16s│ %-5d │ %-16s│ %-5d │ %3d Bytes │ 0x%-4x │ Q │ %-16s│\n", source_ip, sport, dest_ip, dport, header->caplen,dns_id, display_domain);
 
         unsigned char dns_response[1024];
@@ -225,7 +232,8 @@ void packet_handler(u_char *param,const struct pcap_pkthdr *header, const u_char
         }
         
         printf("│Send│ %-16s│ %-5d │ %-16s│ %-5d │ %3d Bytes │ 0x%-4x │ A │ %-16s│\n", dest_ip, dport, source_ip, sport, full_size,dns_id, fake_webserver_ip);
-        printf("├────┼─────────────────┼───────┼─────────────────┼───────┼───────────┼────────┼───┼─────────────────┤\n");
+        printf("└────┴─────────────────┴───────┴─────────────────┴───────┴───────────┴────────┴───┴─────────────────┘");
+        fflush(stdout);
     }
 }
 
