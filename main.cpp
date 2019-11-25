@@ -12,7 +12,7 @@ int main(int argc, char **argv) {
     user_id = getuid();
     user_pw = getpwuid(user_id);
 
-    if(strcmp(user_pw->pw_name, "root")!=0){
+    if(user_pw->pw_uid!=0){
         printf("Error: Permission denied\n", argv[0]);
         return 0;
     }

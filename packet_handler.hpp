@@ -1,3 +1,5 @@
+#ifndef _PACKET_HANDLER_HPP
+#define _PACKET_HANDLER_HPP
 
 #include <pcap.h>
 
@@ -14,3 +16,5 @@ namespace packet_hndlr{
             static void packet_handler(unsigned char *param, const struct pcap_pkthdr *header, const unsigned char *pkt_data);
     };
 }
+
+#endif

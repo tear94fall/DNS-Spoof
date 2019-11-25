@@ -2,21 +2,28 @@
 #include <string.h>
 #include <string>
 #include <sstream>
+#include <vector>
+#include <utility>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <sys/ioctl.h>
+#include <net/if.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <pcap.h>
-#include <vector>
-#include <utility>
 
 #include "protocol.hpp"
 
 char domain[1024];
 char fake_webserver_ip[16];
+char *my_ip;
 
 int packet_capture_start(void);
 void packet_handler(u_char *param,const struct pcap_pkthdr *header, const u_char *pkt_data);
 void print_packet_data(const struct pcap_pkthdr *header, const u_char *pkt_data);
 void make_domain(const struct pcap_pkthdr *header, const u_char *pkt_data, char* result);
+char *set_my_ip(char *interface_name);
 
 int packet_capture_start(){
     struct bpf_program fcode;
@@ -79,15 +86,29 @@ int packet_capture_start(){
 		return -5;
 	}
 
+    my_ip = set_my_ip(interface_list[select_interface_number-1]);
     printf("┌───────────────────────────────────────────────────────────────────────────────────────────────────┐\n");
-    printf("│ dns-spoofing: linstening on %d [udp dst port 53 and not src %15s]                       │\n", select_interface_number, fake_webserver_ip);
+    printf("│ dns-spoofing: linstening on %d [udp dst port 53 and not src %15s]                       │\n", select_interface_number, my_ip);
     printf("├────┬─────────────────┬───────┬─────────────────┬───────┬───────────┬────────┬───┬─────────────────┤\n");
     printf("│Info│ source ip       │ sport │ destination ip  │ dport │ Data size │   ID   │Q&A│   information   │\n");
     printf("└────┴─────────────────┴───────┴─────────────────┴───────┴───────────┴────────┴───┴─────────────────┘");
     fflush(stdout);
-    
+
+    int break_loop_value;
     pcap_freealldevs(alldevs);
-    pcap_loop(adhandle, 0, packet_handler, NULL);
+    break_loop_value = pcap_loop(adhandle, 0, packet_handler, NULL);
+
+    std::string break_loop_message;
+    if(break_loop_value==0){
+        break_loop_message = "지정한 패킷을 모두 캡처했습니다.";
+    }else if(break_loop_value==1){
+        break_loop_message = "네트워크 어뎁터가 더이상 유효하지 않습니다. 캡처를 종료합니다.";
+    }else if(break_loop_value==2){
+        break_loop_message = "패킵 캡처가 정상적으로 종료되었습니다.";
+    }
+
+    printf("%s\n", break_loop_message.c_str());
+
     pcap_close(adhandle);
 
     return 0;
@@ -231,7 +252,7 @@ void packet_handler(u_char *param,const struct pcap_pkthdr *header, const u_char
             printf("error sending udp %d\n", result);
         }
         
-        printf("│Send│ %-16s│ %-5d │ %-16s│ %-5d │ %3d Bytes │ 0x%-4x │ A │ %-16s│\n", dest_ip, dport, source_ip, sport, full_size,dns_id, fake_webserver_ip);
+        printf("│Send│ %-16s│ %-5d │ %-16s│ %-5d │ %3d Bytes │ 0x%-4x │ A │ %-16s│\n", my_ip, dport, source_ip, sport, full_size,dns_id, fake_webserver_ip);
         printf("└────┴─────────────────┴───────┴─────────────────┴───────┴───────────┴────────┴───┴─────────────────┘");
         fflush(stdout);
     }
@@ -343,4 +364,16 @@ void print_packet_data(const struct pcap_pkthdr *header, const u_char *pkt_data)
         }
         printf("%.2x ", (unsigned int)c);
 	}printf("\n\n");
+}
+
+char *set_my_ip(char *interface_name){
+    int fd;
+    struct ifreq ifr;
+    fd = socket(AF_INET, SOCK_DGRAM, 0);
+    ifr.ifr_addr.sa_family = AF_INET;
+    strncpy(ifr.ifr_name, "ens33", IFNAMSIZ - 1);
+    ioctl(fd, SIOCGIFADDR, &ifr);
+    close(fd);
+
+    return inet_ntoa(((struct sockaddr_in *)&ifr.ifr_addr)->sin_addr);
 }
