@@ -31,15 +31,5 @@ int main(int argc, char **argv) {
         return 0;
     }
 
-    // if (argc != 3) {
-    //     printf("Error: Invalid arguments\nUsage: ./main <interface> <packet cnt>\n");
-    //     return 0;
-    // }
-
-    // packet_hndlr::packet_hndlr *packet_handler = new packet_hndlr::packet_hndlr();
-    // packet_handler->start_packet_capture("", argv[1], atoi(argv[2]));
-    // packet_handler->stop_packet_capture();
-    // free(packet_handler);
-
     return 0;
 }
