@@ -2,14 +2,21 @@
 #define _PACKET_HANDLER_HPP
 
 #include <pcap.h>
+#include "protocol.hpp"
 
 namespace packet{
     namespace packet_header{
-
+        class dns_packet{
+            public:
+            ether_header *eth_hdr;
+            ip_header *ip_hdr;
+            udp_header *udp_hdr;
+            dns_header *dns_hdr;
+        };
     }
 
     namespace packet_hndlr{
-        class packet_hndlr{
+        class packet_hndlr:public packet_header::dns_packet{
         public:
             void start_packet_capture(const char *filter, char *device_name, unsigned int packet_count);
             void stop_packet_capture();

@@ -34,6 +34,9 @@ int packet_capture_start(){
     pcap_if_t *d;
     int i = 0;
 
+    struct pcap_pkthdr header;
+	const unsigned char* pkt_data = NULL;
+
     const char * filter = "port 53 and (udp and (udp[10] & 128 = 0))";     // Recv
     // const char * filter = "port 53 and (udp and (not udp[10] & 128 = 0))";  // Send
 
@@ -96,20 +99,12 @@ int packet_capture_start(){
 
     int break_loop_value;
     pcap_freealldevs(alldevs);
-    break_loop_value = pcap_loop(adhandle, 0, packet_handler, NULL);
 
-    std::string break_loop_message;
-    if(break_loop_value==0){
-        break_loop_message = "지정한 패킷을 모두 캡처했습니다.";
-    }else if(break_loop_value==1){
-        break_loop_message = "네트워크 어뎁터가 더이상 유효하지 않습니다. 캡처를 종료합니다.";
-    }else if(break_loop_value==2){
-        break_loop_message = "패킵 캡처가 정상적으로 종료되었습니다.";
+    while (1) {
+		if ((pkt_data = pcap_next(adhandle, &header)) != NULL) {
+            packet_handler(NULL, &header, pkt_data);
+        }
     }
-
-    printf("%s\n", break_loop_message.c_str());
-
-    pcap_close(adhandle);
 
     return 0;
 }

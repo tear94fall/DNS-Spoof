@@ -37,7 +37,7 @@ typedef struct udp_header {
 	unsigned short crc;
 }udp_header;
 
-typedef struct DnsMessageHeader{
+typedef struct dns_header{
     short ID;
 
     unsigned char RD : 1;
