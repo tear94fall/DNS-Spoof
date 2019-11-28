@@ -11,6 +11,7 @@ packet_handler.o: packet_handler.cpp
 
 file:
 	g++ -o file_read file_read.cpp -std=c++11
+	echo "1.1.1.1 www.naver.com" > info.txt
 	./file_read www.google.com
 
 test:

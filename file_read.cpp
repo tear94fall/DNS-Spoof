@@ -40,7 +40,7 @@ std::vector<std::pair<std::string, std::string> > read_info_from_file(const char
 
     FILE *fp;
     char line[256];
-    fp = fopen(file_name, "r");  // 파일 열기
+    fp = fopen(file_name, "r"); 
 
     if(fp==NULL){
         printf("Error: fail to open file\n");
@@ -50,17 +50,19 @@ std::vector<std::pair<std::string, std::string> > read_info_from_file(const char
     while(!feof(fp)){
         std::pair<std::string, std::string> temp;
 
-        fgets(line, 80, fp);
+        char *ch = fgets(line, 80, fp);
 
-        char *ip = strtok(line, " ");
-        char *domain = strtok(NULL, "\n");
+        if(ch!=NULL){
+            char *ip = strtok(line, " ");
+            char *domain = strtok(NULL, "\n");
 
-        std::string str_ip(ip);
-        std::string str_domain(domain);
+            std::string str_ip(ip);
+            std::string str_domain(domain);
 
-        temp = std::make_pair(str_ip, str_domain);
+            temp = std::make_pair(str_ip, str_domain);
 
-        vec.push_back(temp);
+            vec.push_back(temp);
+        }
     }
 
     fclose(fp);
