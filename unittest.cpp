@@ -13,19 +13,28 @@ TEST(DISABLED_head_test, test_name) { EXPECT_EQ(3, sum(1,2)); }
 TEST(capture_test, capture_test) { EXPECT_EQ(0, packet_capture_start()); }
 
 int main(int argc, char **argv) {
-  uid_t          user_id;
-  struct passwd *user_pw;
+    uid_t          user_id;
+    struct passwd *user_pw;
+    
+    user_id = getuid();
+    user_pw = getpwuid(user_id);
+    
+    if (user_pw->pw_uid != 0) {
+        printf("Error: Permission denied\n", argv[0]);
+        return 0;
+    }
 
-  user_id = getuid();
-  user_pw = getpwuid(user_id);
+    argc = 3;    
+    strncpy(domain, "www.google.com", 60);
+    strncpy(fake_webserver_ip, "192.168.218.134", 16);   
 
-  if (user_pw->pw_uid != 0) {
-    printf("Error: Permission denied\n", argv[0]);
-    return 0;
-  }
-
-  ::testing::InitGoogleTest(&argc, argv);
-  return RUN_ALL_TESTS();
+    if (argc != 3) {
+        printf("Error: Invalid arguments\nUsage: ./main <domain_to_spoof> <fake_web_server>\n");
+        return 0;
+    }
+    
+    ::testing::InitGoogleTest(&argc, argv);
+    return RUN_ALL_TESTS();
 }
 
 bool compare(int a, int b){

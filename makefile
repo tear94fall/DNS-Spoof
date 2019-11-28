@@ -9,6 +9,10 @@ main: packet_handler.o
 packet_handler.o: packet_handler.cpp
 	gcc -c -o packet_handler.o packet_handler.cpp -std=c++11
 
+file:
+	g++ -o file_read file_read.cpp -std=c++11
+	./file_read www.google.com
+
 test:
 	g++ -o ${TEST_FILE} unittest.cpp -isystem -I${DIR}/include -L${DIR}/lib -pthread -lgtest -lpcap -std=c++11
 	./${TEST_FILE}
