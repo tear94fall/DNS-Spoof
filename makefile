@@ -1,22 +1,31 @@
-DIR=/usr/local
-TEST_FILE=unittest
-OBJS = main.o packet_handler.o
-TARGET = main
+CC=g++
+CPPFLAGS=-std=c++11 -lstdc++
 
-main: packet_handler.o
-	gcc main.cpp -o main packet_handler.o -lnet -lpcap -lpthread -std=c++11 -lstdc++
+TARGET=dnsspoof
+OBJS=main.o packet_handler.o
+SRC=$(OBJS:.o=.c)
 
-packet_handler.o: packet_handler.cpp
-	gcc -c -o packet_handler.o packet_handler.cpp -std=c++11
+LIBS=-lnet -lpcap -lgtest
+PTHREAD=-lpthread
+
+UNITTEST=unittest
+
+all: ${TARGET}
+
+${TARGET}: ${OBJS}
+	${CC} -o ${TARGET} ${OBJS} ${PTHREAD} ${LIBS} ${CPPFLAGS}
 
 file:
-	g++ -o file_read file_read.cpp -std=c++11
+	${CC} -o file_read file_read.cpp ${CPPFLAGS}
 	echo "1.1.1.1 www.naver.com" > info.txt
 	./file_read www.google.com
 
 test:
-	g++ -o ${TEST_FILE} unittest.cpp -isystem -I${DIR}/include -L${DIR}/lib -pthread -lgtest -lpcap -std=c++11
-	./${TEST_FILE}
+	${CC} -o ${UNITTEST} unittest.cpp  ${PTHREAD} ${LIBS} ${CPPFLAGS}
+	./${UNITTEST}
 
 clean:
-	rm -f *.o $(TARGET) ${TEST_FILE}
+	rm -f *.o $(TARGET) ${UNITTEST}
+
+main.o : main.cpp
+packet_handler.o : packet_handler.cpp

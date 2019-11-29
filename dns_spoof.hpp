@@ -58,13 +58,14 @@ int packet_capture_start(){
 		}
         pcap_close(adhandle);
 	}
-    printf("  ┌────────────────────┐  \n");
-    printf("┌─┤  Select interface  ├─┐\n");
-    printf("│ └────────────────────┘ │\n");
+
+    printf("┌────┬─────────────┐\n");
+    printf("│ No │ interface   │\n");
+    printf("├────┼─────────────┤\n");
 	for (int i = 0; i < interface_list.size(); i++) {
-        printf("│ %-2d- %-10s         │\n", i+1, interface_list[i]);
+        printf("│ %-2d │ %-10s  │\n", i+1, interface_list[i]);
 	}
-    printf("└────────────────────────┘\n");
+    printf("└────┴─────────────┘\n");
     
     int select_interface_number;
 	printf("Enter the interface number you would like to sniff : ");
@@ -73,7 +74,7 @@ int packet_capture_start(){
     if(select_interface_number <1 || select_interface_number > interface_list.size()){
         printf("Network interface out of range\n");
         return -2;
-    }
+    }    
 
     if (!(adhandle=pcap_open_live(interface_list[select_interface_number-1], 65536, 1, 1000, errbuf))) {
 		fprintf(stderr, "ERROR: %s\n", pcap_geterr(adhandle));
