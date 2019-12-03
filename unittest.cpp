@@ -1,16 +1,18 @@
 #include <unistd.h>
 #include <pwd.h>
 #include <sys/types.h>
-
-#include "dns_spoof.hpp"
 #include <gtest/gtest.h>
 
-bool compare(int a, int b);
-int sum(int a, int b);
+#include "packet_handler.cpp"
 
-TEST(DISABLED_node_insert_test, linked_list_insert) { EXPECT_TRUE(compare(1, 1)); }
-TEST(DISABLED_head_test, test_name) { EXPECT_EQ(3, sum(1,2)); }
-TEST(capture_test, capture_test) { EXPECT_EQ(0, packet_capture_start()); }
+TEST(attack_test, capture_test) {
+    packet_handle pkt_hnd = packet_handle();
+    
+    char file_name[128] = "info";
+    pkt_hnd.attack_info_file=file_name;
+
+    EXPECT_EQ(0, pkt_hnd.packet_capture_start()); 
+}
 
 int main(int argc, char **argv) {
     uid_t          user_id;
@@ -23,24 +25,7 @@ int main(int argc, char **argv) {
         printf("Error: Permission denied\n", argv[0]);
         return 0;
     }
-
-    argc = 3;    
-    strncpy(domain, "www.google.com", 60);
-    strncpy(fake_webserver_ip, "192.168.218.134", 16);   
-
-    if (argc != 3) {
-        printf("Error: Invalid arguments\nUsage: ./main <domain_to_spoof> <fake_web_server>\n");
-        return 0;
-    }
     
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
-}
-
-bool compare(int a, int b){
-    return a==b?true:false;
-}
-
-int sum(int a, int b){
-    return a+b;
 }
