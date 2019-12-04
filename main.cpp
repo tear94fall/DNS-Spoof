@@ -6,7 +6,6 @@
 #define FILTER_ADAPTION_ERROR -6
 #define CAPTURE_QUIT_EXIT_PROGRAM 0
 
-#include "dns_spoof.hpp"
 #include "packet_handler.hpp"
 
 #include <unistd.h>
@@ -30,9 +29,11 @@ int main(int argc, char **argv) {
         return 0;
     }
 
-    attack_info_file = argv[2];
+    packet_handle *pkt_hnd = (packet_handle*)malloc(sizeof(packet_handle));
 
-    int error_code = packet_capture_start();
+    pkt_hnd->attack_info_file = argv[2];
+
+    int error_code = pkt_hnd->packet_capture_start();
     char error_message[1024];
 
     switch(error_code){
@@ -64,6 +65,8 @@ int main(int argc, char **argv) {
     }else{
         printf("QUIT: %s\nExit program...\n", error_message);
     }
+
+    delete pkt_hnd;
 
     return 0;
 }
