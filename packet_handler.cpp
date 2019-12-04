@@ -1,5 +1,10 @@
 #include "packet_handler.hpp"
 
+void packet_handle::set_attack_info_file(char* file_name){
+    this->attack_info_file=file_name;
+}
+
+
 int packet_handle::packet_capture_start(){
     struct bpf_program fcode;
     bpf_u_int32 mask;

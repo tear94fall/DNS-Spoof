@@ -18,7 +18,7 @@
 #include "protocol.hpp"
 
 class packet_handle{
-    public:
+    private:
         char *attack_info_file;
         char *my_ip;
         std::vector<std::pair<std::string, std::string> > attack_list;
@@ -26,6 +26,7 @@ class packet_handle{
         std::vector<std::string> fake_web_server_array;
     
     public:
+        void set_attack_info_file(char* file_name);
         int packet_capture_start(void);
         void packet_handler(unsigned char *param, const struct pcap_pkthdr *header, const unsigned char *pkt_data);
         void sned_dns_packet(char *target_ip, int port, unsigned char *dns_packet,int size);
