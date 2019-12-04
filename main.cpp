@@ -12,7 +12,24 @@
 #include <pwd.h>
 #include <sys/types.h>
 
+int check_permission(void);
+int check_args(int argc, char **argv);
+void print_error_msg(int error_code);
+
 int main(int argc, char **argv) {
+    if(check_permission()<0){return 0;}
+    if(check_args(argc, argv)<0){return 0;}
+
+    packet_handle *pkt_hnd = (packet_handle*)malloc(sizeof(packet_handle));
+    pkt_hnd->set_attack_info_file(argv[2]);
+    print_error_msg(pkt_hnd->packet_capture_start());
+
+    delete pkt_hnd;
+    return 0;
+}
+
+
+int check_permission(void){
     uid_t          user_id;
     struct passwd *user_pw;
 
@@ -20,20 +37,23 @@ int main(int argc, char **argv) {
     user_pw = getpwuid(user_id);
 
     if(user_pw->pw_uid!=0){
-        printf("ERROR: Permission denied\n", argv[0]);
-        return 0;
+        printf("ERROR: User[%s], Permission denied\n", user_pw->pw_name);
+        return -1;
     }
-    
+    return 0;
+}
+
+
+int check_args(int argc, char **argv){
     if (argc != 3 || strcmp(argv[1], "-f")!=0) {
         printf("ERROR: Invalid arguments\nUsage: ./main -f <attack info file>\n");
-        return 0;
+        return -1;
     }
+    return 0;
+}
 
-    packet_handle *pkt_hnd = (packet_handle*)malloc(sizeof(packet_handle));
 
-    pkt_hnd->attack_info_file = argv[2];
-
-    int error_code = pkt_hnd->packet_capture_start();
+void print_error_msg(int error_code){
     char error_message[1024];
 
     switch(error_code){
@@ -65,8 +85,4 @@ int main(int argc, char **argv) {
     }else{
         printf("QUIT: %s\nExit program...\n", error_message);
     }
-
-    delete pkt_hnd;
-
-    return 0;
 }
