@@ -9,7 +9,7 @@ TEST(attack_test, capture_test) {
     packet_handle *pkt_hnd = (packet_handle*)malloc(sizeof(packet_handle));
     
     char file_name[128] = "info";
-    pkt_hnd->attack_info_file=file_name;
+    pkt_hnd->set_attack_info_file(file_name);
 
     EXPECT_EQ(0, pkt_hnd->packet_capture_start()); 
 

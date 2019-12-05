@@ -55,10 +55,10 @@ int check_args(int argc, char **argv){
 
 void print_error_msg(int error_code){
     char error_message[1024];
-
+    printf("\n");
     switch(error_code){
         case ATTACK_INFO_FILE_EMPTY_ERROR:
-            strcpy(error_message, "Attack info is empty. please check again attack info file...");
+            strcpy(error_message, "Attack info is not valid. please check again attack info file...");
             break;
         case NETWORK_INTERFACE_NOT_FOUND_ERROR:
             strcpy(error_message, "Network interface not found. please retry...\n");
