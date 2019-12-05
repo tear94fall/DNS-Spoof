@@ -320,6 +320,9 @@ std::vector<std::pair<std::string, std::string> > packet_handle::read_info_from_
         return vec;
     }
 
+    int valid_cnt=0;
+    int invalid_cnt=0;
+
     while(!feof(fp)){
         std::pair<std::string, std::string> temp;
 
@@ -330,15 +333,39 @@ std::vector<std::pair<std::string, std::string> > packet_handle::read_info_from_
             char *domain = strtok(NULL, "\n");
 
             std::string str_ip(ip);
-            std::string str_domain(domain);
+            if(!validation_check_ip_addr(str_ip)){
+                printf(ANSI_COLOR_RED   "==> Invalid ip [%s]" ANSI_COLOR_RESET "\n", str_ip.c_str());
+                invalid_cnt++;
+            }else{
+                printf(ANSI_COLOR_GREEN "==>   Valid ip [%s]" ANSI_COLOR_RESET "\n", str_ip.c_str());
+                std::string str_domain(domain);
+                trim(str_domain);
 
-            temp = std::make_pair(str_ip, str_domain);
+                temp = std::make_pair(str_ip, str_domain);
 
-            vec.push_back(temp);
+                vec.push_back(temp);
+                valid_cnt++;
+            }
         }
     }
 
+    printf("Invalid [" ANSI_COLOR_RED "%d" ANSI_COLOR_RESET "], Valid [" ANSI_COLOR_GREEN "%d" ANSI_COLOR_RESET "]\n", invalid_cnt, valid_cnt);
+    
     fclose(fp);
-
     return vec;
+}
+
+
+bool packet_handle::validation_check_ip_addr(std::string ip_addr){
+    struct sockaddr_in sa;
+    if(inet_pton(AF_INET, ip_addr.c_str(), &(sa.sin_addr))==1){
+        return true;
+    }else{
+        return false;
+    }
+}
+
+
+void packet_handle::trim(std::string& str) {
+    str.erase(std::remove(str.begin(), str.end(), ' '), str.end());
 }

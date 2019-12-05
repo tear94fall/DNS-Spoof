@@ -8,6 +8,7 @@
 #include <vector>
 #include <utility>
 #include <unistd.h>
+#include <algorithm>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/ioctl.h>
@@ -16,6 +17,10 @@
 #include <arpa/inet.h>
 #include <pcap.h>
 #include "protocol.hpp"
+
+#define ANSI_COLOR_RED     "\x1b[31m"
+#define ANSI_COLOR_GREEN   "\x1b[32m"
+#define ANSI_COLOR_RESET   "\x1b[0m"
 
 class packet_handle{
     private:
@@ -35,6 +40,8 @@ class packet_handle{
         char *set_my_ip(char *interface_name);
         bool compare_domain(const char *target_domain, std::vector<std::string> domain_array);
         std::vector<std::pair<std::string, std::string> > read_info_from_file(const char* file_name);
+        bool validation_check_ip_addr(std::string ip_addr);
+        void trim(std::string& str);
 };
 
 #endif
