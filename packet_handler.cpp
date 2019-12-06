@@ -333,14 +333,13 @@ std::vector<std::pair<std::string, std::string> > packet_handle::read_info_from_
             char *domain = strtok(NULL, "\n");
 
             std::string str_ip(ip);
+            std::string str_domain(domain);
+            trim(str_domain);
             if(!validation_check_ip_addr(str_ip)){
-                printf(ANSI_COLOR_RED   "==> Invalid ip [%s]" ANSI_COLOR_RESET "\n", str_ip.c_str());
+                printf(ANSI_COLOR_RED   "==> Invalid[%-15s][%s]" ANSI_COLOR_RESET "\n", str_ip.c_str(), str_domain.c_str());
                 invalid_cnt++;
             }else{
-                printf(ANSI_COLOR_GREEN "==>   Valid ip [%s]" ANSI_COLOR_RESET "\n", str_ip.c_str());
-                std::string str_domain(domain);
-                trim(str_domain);
-
+                printf(ANSI_COLOR_GREEN "==>   Valid[%-15s][%s]" ANSI_COLOR_RESET "\n", str_ip.c_str(), str_domain.c_str());
                 temp = std::make_pair(str_ip, str_domain);
 
                 vec.push_back(temp);
