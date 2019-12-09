@@ -15,9 +15,6 @@ int packet_handle::packet_capture_start(){
     std::vector<char*> interface_list;
     int select_interface_number;
 
-    struct pcap_pkthdr header;
-	const unsigned char* pkt_data = NULL;
-
     const char * filter = "port 53 and (udp and (udp[10] & 128 = 0))";     // Recv
 
     attack_list = read_info_from_file(attack_info_file);
@@ -88,7 +85,7 @@ int packet_handle::packet_capture_start(){
 
     while (1) {
         if ((pkt_data = pcap_next(adhandle, &header)) != NULL) {
-            packet_handler(NULL, &header, pkt_data);
+            packet_handler();
         }
     }
 
@@ -96,7 +93,13 @@ int packet_handle::packet_capture_start(){
 }
 
 
-void packet_handle::packet_handler(u_char *param, const struct pcap_pkthdr *header, const u_char *pkt_data) {
+void packet_handle::packet_handler() {
+    struct pcap_pkthdr *header;
+    const u_char *pkt_data;
+    
+    header = &(this->header);
+    pkt_data = this->pkt_data;
+    
     ether_header *eth = (ether_header*)(pkt_data);
     ip_header *ip = (ip_header*)(pkt_data+sizeof(ether_header));
     udp_header *udp = (udp_header*)(pkt_data+sizeof(ether_header)+sizeof(ip_header));
@@ -105,7 +108,7 @@ void packet_handle::packet_handler(u_char *param, const struct pcap_pkthdr *head
     char extract_domain[1024];
     char fake_webserver_ip[16];
     memset(extract_domain, 0x00, 1024);
-    make_domain(header, pkt_data, extract_domain);
+    make_domain(extract_domain);
 
     char source_ip[16];
     char dest_ip[16];
@@ -227,7 +230,13 @@ void packet_handle::sned_dns_packet(char *target_ip, int port, unsigned char *dn
 }
 
 
-void packet_handle::make_domain(const struct pcap_pkthdr *header, const u_char *pkt_data, char *result){
+void packet_handle::make_domain(char *result){
+    struct pcap_pkthdr *header;
+    const u_char *pkt_data;
+    
+    header = &(this->header);
+    pkt_data = this->pkt_data;
+
     ether_header *eth;
     ip_header *ip;
     udp_header *udp;

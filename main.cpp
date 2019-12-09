@@ -19,12 +19,11 @@ void print_error_msg(int error_code);
 int main(int argc, char **argv) {
     if(check_permission()<0){return 0;}
     if(check_args(argc, argv)<0){return 0;}
+    
+    packet_handle pkt_hnd = packet_handle();
+    pkt_hnd.set_attack_info_file(argv[2]);
+    print_error_msg(pkt_hnd.packet_capture_start());
 
-    packet_handle *pkt_hnd = (packet_handle*)malloc(sizeof(packet_handle));
-    pkt_hnd->set_attack_info_file(argv[2]);
-    print_error_msg(pkt_hnd->packet_capture_start());
-
-    delete pkt_hnd;
     return 0;
 }
 
