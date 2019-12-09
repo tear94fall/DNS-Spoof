@@ -22,7 +22,11 @@ int main(int argc, char **argv) {
     
     packet_handle pkt_hnd = packet_handle();
     pkt_hnd.set_attack_info_file(argv[2]);
+    pkt_hnd.read_info_from_file();
+    pkt_hnd.set_dom_and_ip();
     print_error_msg(pkt_hnd.packet_capture_start());
+    pkt_hnd.set_my_ip();
+    pkt_hnd.start_capture_loop();
 
     return 0;
 }
@@ -77,6 +81,8 @@ void print_error_msg(int error_code){
         case CAPTURE_QUIT_EXIT_PROGRAM:
             strcpy(error_message, "Good bye.");
             break;
+        default:
+            return ;
     }
 
     if(error_code < 0){
