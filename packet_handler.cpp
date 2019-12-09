@@ -105,7 +105,7 @@ void packet_handle::packet_handler() {
     unsigned char dns_response[1024];
     unsigned char *dns_reply_hdr;
 
-    if(strcmp(extract_domain, "")!=0 && compare_domain(extract_domain, domain_array)){
+    if(strcmp(extract_domain, "")!=0 && compare_domain(extract_domain)){
         memset(display_domain, 0x00, 1024);
         memcpy(display_domain, extract_domain, 1024);
         if(strlen(display_domain)>16){
@@ -239,9 +239,9 @@ void packet_handle::sned_dns_packet(char *target_ip, int port, unsigned char *dn
 }
 
 
-bool packet_handle::compare_domain(const char *target_domain, std::vector<std::string> domain_array){
-    for(int i=0;i<domain_array.size();i++){
-        if(strcmp(target_domain, domain_array[i].c_str())==0){
+bool packet_handle::compare_domain(const char *target_domain){
+    for(int i=0;i<this->domain_array.size();i++){
+        if(strcmp(target_domain, this->domain_array[i].c_str())==0){
             return true;
         }
     }

@@ -15,6 +15,7 @@
 #include <net/if.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <pwd.h>
 #include <pcap.h>
 #include "protocol.hpp"
 
@@ -49,7 +50,9 @@ class packet_handle{
     public:
         void set_attack_info_file(char* file_name);
         void set_my_ip();
+        
         int packet_capture_start();
+        
         void print_capture_info();
         void start_capture_loop();
         void set_protocol_header();
@@ -57,9 +60,11 @@ class packet_handle{
         void make_domain();
         void sned_dns_packet(char *target_ip, int port, unsigned char *dns_packet,int size);
         void set_dom_and_ip();
-        bool compare_domain(const char *target_domain, std::vector<std::string> domain_array);
+
+        bool compare_domain(const char *target_domain);
         void read_info_from_file();
         bool validation_check_ip_addr(std::string ip_addr);
+        
         void trim(std::string& str);
 };
 

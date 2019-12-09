@@ -1,19 +1,18 @@
-#include <unistd.h>
-#include <pwd.h>
-#include <sys/types.h>
-#include <gtest/gtest.h>
 
+
+#include <gtest/gtest.h>
 #include "packet_handler.cpp"
 
 TEST(attack_test, capture_test) {
-    packet_handle *pkt_hnd = (packet_handle*)malloc(sizeof(packet_handle));
-    
+    packet_handle pkt_hnd = packet_handle();
     char file_name[128] = "info";
-    pkt_hnd->set_attack_info_file(file_name);
 
-    EXPECT_EQ(0, pkt_hnd->packet_capture_start()); 
-
-    delete pkt_hnd;
+    EXPECT_NO_THROW(pkt_hnd.set_attack_info_file(file_name));
+    EXPECT_NO_THROW(pkt_hnd.read_info_from_file());
+    EXPECT_NO_THROW(pkt_hnd.set_dom_and_ip());
+    EXPECT_EQ(0, pkt_hnd.packet_capture_start());
+    EXPECT_NO_THROW(pkt_hnd.set_my_ip());
+    EXPECT_NO_THROW(pkt_hnd.print_capture_info());
 }
 
 int main(int argc, char **argv) {

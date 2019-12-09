@@ -8,10 +8,6 @@
 
 #include "packet_handler.hpp"
 
-#include <unistd.h>
-#include <pwd.h>
-#include <sys/types.h>
-
 int check_permission(void);
 int check_args(int argc, char **argv);
 int print_error_msg(int error_code);
