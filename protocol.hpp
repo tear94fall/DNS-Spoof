@@ -2,7 +2,7 @@
 #ifndef PROTOCOL_HPP
 #define PROTOCOL_HPP
 
-#include <sys/types.h>
+#include "common.hpp"
 
 typedef struct ether_header{
 	unsigned char dst_host[6];
@@ -10,12 +10,14 @@ typedef struct ether_header{
 	unsigned short frame_type;
 }ether_header;
 
+
 typedef struct ip_address {
 	unsigned char byte1;
 	unsigned char byte2;
 	unsigned char byte3;
 	unsigned char byte4;
 }ip_address;
+
 
 typedef struct ip_header{
 	unsigned char ver_ihl;
@@ -30,12 +32,14 @@ typedef struct ip_header{
 	ip_address daddr; 
 }ip_header;
 
+
 typedef struct udp_header {
 	unsigned short sport;   
 	unsigned short dport;
 	unsigned short len;
 	unsigned short crc;
 }udp_header;
+
 
 typedef struct dns_header{
     short ID;
@@ -60,5 +64,15 @@ typedef struct dns_header{
 	short TYPE;
 	short CLASS;
 }dns_header;
+
+
+class packets{
+    public:
+        ether_header *eth;
+        ip_header *ip;
+        udp_header *udp;
+        dns_header *dns;
+};
+
 
 #endif

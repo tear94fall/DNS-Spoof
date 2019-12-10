@@ -15,7 +15,18 @@ int print_error_msg(int error_code);
 int main(int argc, char **argv) {
     if(check_permission()<0){return 0;}
     if(check_args(argc, argv)<0){return 0;}
-    
+
+    printf(ANSI_COLOR_YELLOW "                                                                              ,...,,                      \n" ANSI_COLOR_RESET);
+    printf(ANSI_COLOR_YELLOW "`7MM\"\"\"Yb. `7MN.   `7MF'.M\"\"\"bgd      .M\"\"\"bgd                              .d' \"\"db                      \n" ANSI_COLOR_RESET);
+    printf(ANSI_COLOR_YELLOW "  MM    `Yb. MMN.    M ,MI    \"Y     ,MI    \"Y                              dM`                           \n" ANSI_COLOR_RESET);
+    printf(ANSI_COLOR_YELLOW "  MM     `Mb M YMb   M `MMb.         `MMb.   `7MMpdMAo.  ,pW\"Wq.   ,pW\"Wq. mMMmm`7MM  `7MMpMMMb.  .P\"Ybmmm\n" ANSI_COLOR_RESET);
+    printf(ANSI_COLOR_YELLOW "  MM      MM M  `MN. M   `YMMNq.       `YMMNq. MM   `Wb 6W'   `Wb 6W'   `Wb MM    MM    MM    MM :MI  I8  \n" ANSI_COLOR_RESET);
+    printf(ANSI_COLOR_YELLOW "  MM     ,MP M   `MM.M .     `MM     .     `MM MM    M8 8M     M8 8M     M8 MM    MM    MM    MM  WmmmP\"  \n" ANSI_COLOR_RESET);
+    printf(ANSI_COLOR_YELLOW "  MM    ,dP' M     YMM Mb     dM     Mb     dM MM   ,AP YA.   ,A9 YA.   ,A9 MM    MM    MM    MM 8M       \n" ANSI_COLOR_RESET);
+    printf(ANSI_COLOR_YELLOW ".JMMmmmdP' .JML.    YM P\"Ybmmd\"      P\"Ybmmd\"  MMbmmd'   `Ybmd9'   `Ybmd9'.JMML..JMML..JMML  JMML.YMMMMMb \n" ANSI_COLOR_RESET);
+    printf(ANSI_COLOR_YELLOW "                                               MM                                                6'     dP\n" ANSI_COLOR_RESET);
+    printf(ANSI_COLOR_YELLOW "                                             .JMML.                                              Ybmmmd'  \n" ANSI_COLOR_RESET);
+
     packet_handle pkt_hnd = packet_handle();
     pkt_hnd.set_attack_info_file(argv[2]);
     pkt_hnd.read_info_from_file();

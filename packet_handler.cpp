@@ -1,10 +1,5 @@
 #include "packet_handler.hpp"
 
-void packet_handle::set_attack_info_file(char* file_name){
-    this->attack_info_file=file_name;
-}
-
-
 void packet_handle::set_my_ip(){
     struct ifreq ifr;
     int fd = socket(AF_INET, SOCK_DGRAM, 0);
@@ -26,7 +21,7 @@ int packet_handle::packet_capture_start(){
 
     const char * filter = "port 53 and (udp and (udp[10] & 128 = 0))";     // Recv
 
-    if(this->attack_list.size()==0){return -1;}
+    if(this->get_attack_list().size()==0){return -1;}
     if (pcap_findalldevs(&alldevs, errbuf) < 0) {return -2;}
 
 	for (d = alldevs; d; d = d->next) {
@@ -152,9 +147,9 @@ void packet_handle::packet_handler() {
         dns_reply_hdr[size+24]=0x00; dns_reply_hdr[size+25]=0x34;
         dns_reply_hdr[size+26]=0x00; dns_reply_hdr[size+27]=0x04;
 
-        for(int i=0;i<domain_array.size();i++){
-            if(strcmp(extract_domain, domain_array[i].c_str())==0){
-                strcpy(fake_webserver_ip,attack_list[i].first.c_str());
+        for(int i=0;i<this->get_domain_array().size();i++){
+            if(strcmp(extract_domain, this->get_domain_array()[i].c_str())==0){
+                strcpy(fake_webserver_ip,this->get_attack_list()[i].first.c_str());
             }
         }
 
@@ -240,80 +235,11 @@ void packet_handle::sned_dns_packet(char *target_ip, int port, unsigned char *dn
 
 
 bool packet_handle::compare_domain(const char *target_domain){
-    for(int i=0;i<this->domain_array.size();i++){
-        if(strcmp(target_domain, this->domain_array[i].c_str())==0){
+    for(int i=0;i<this->get_domain_array().size();i++){
+        if(strcmp(target_domain, this->get_domain_array()[i].c_str())==0){
             return true;
         }
     }
 
     return false;
-}
-
-
-void packet_handle::set_dom_and_ip(){
-    std::vector<std::string> temp_web_arr, temp_domain;
-    
-    for(int i=0;i<attack_list.size();i++){
-        temp_web_arr.push_back(attack_list[i].first);
-        temp_domain.push_back(attack_list[i].second);
-    }
-
-    this->fake_web_server_array = temp_web_arr;
-    this->domain_array = temp_domain;
-}
-
-
-void packet_handle::read_info_from_file(){
-    std::vector<std::pair<std::string, std::string> > vec;
-
-    FILE *fp;
-    char line[256];
-    fp = fopen(this->attack_info_file, "r"); 
-
-    if(fp==NULL){
-        printf("Error: fail to open file\n");
-        return ;
-    }
-
-    int valid_cnt=0, invalid_cnt=0;
-
-    while(!feof(fp)){
-        std::pair<std::string, std::string> temp;
-
-        char *ch = fgets(line, 80, fp);
-
-        if(ch!=NULL){
-            char *ip = strtok(line, " ");
-            char *domain = strtok(NULL, "\n");
-
-            std::string str_ip(ip);
-            std::string str_domain(domain);
-            trim(str_domain);
-            if(!validation_check_ip_addr(str_ip)){
-                printf(ANSI_COLOR_RED   "==> Invalid[%-15s][%s]" ANSI_COLOR_RESET "\n", str_ip.c_str(), str_domain.c_str());
-                invalid_cnt++;
-            }else{
-                printf(ANSI_COLOR_GREEN "==>   Valid[%-15s][%s]" ANSI_COLOR_RESET "\n", str_ip.c_str(), str_domain.c_str());
-                temp = std::make_pair(str_ip, str_domain);
-
-                vec.push_back(temp);
-                valid_cnt++;
-            }
-        }
-    }
-
-    printf("Invalid [" ANSI_COLOR_RED "%d" ANSI_COLOR_RESET "], Valid [" ANSI_COLOR_GREEN "%d" ANSI_COLOR_RESET "]\n", invalid_cnt, valid_cnt);
-    
-    fclose(fp);
-    this->attack_list = vec;
-}
-
-
-bool packet_handle::validation_check_ip_addr(std::string ip_addr){
-    struct sockaddr_in sa;
-    return inet_pton(AF_INET, ip_addr.c_str(), &(sa.sin_addr))==1 ? true : false;
-}
-
-void packet_handle::trim(std::string& str) {
-    str.erase(std::remove(str.begin(), str.end(), ' '), str.end());
 }

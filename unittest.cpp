@@ -1,7 +1,6 @@
 
-
 #include <gtest/gtest.h>
-#include "packet_handler.cpp"
+#include "packet_handler.hpp"
 
 TEST(attack_test, capture_test) {
     packet_handle pkt_hnd = packet_handle();

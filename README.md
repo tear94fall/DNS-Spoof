@@ -2,11 +2,7 @@
 Linux DNS Spoofing tool  
 
 * demo 
-<img src="/demo.gif" witdh="690" height="380">
-
-* image
-<img src="/image001.PNG" witdh="690" height="380">
-
+<img src="/demo.gif" >  
 * You must arp-spoofing before dns-spoofing, and need fake web server.
 
 1. Clone this project
