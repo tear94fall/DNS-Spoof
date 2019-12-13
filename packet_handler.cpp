@@ -11,32 +11,22 @@ void packet_handle::set_my_ip(){
 }
 
 
-int packet_handle::packet_capture_start(){
-    struct bpf_program fcode;
-    bpf_u_int32 mask;
-    char errbuf[PCAP_ERRBUF_SIZE];
-    pcap_if_t *alldevs, *d;
-
-    std::vector<char*> interface_list;
-
-    const char * filter = "port 53 and (udp and (udp[10] & 128 = 0))";     // Recv
-
+int packet_handle::set_network_interface(){
     if(this->get_attack_list().size()==0){return -1;}
     if (pcap_findalldevs(&alldevs, errbuf) < 0) {return -2;}
 
 	for (d = alldevs; d; d = d->next) {
-        if(d->next==NULL){
-
-            break;
-        }
-
+        if(d->next==NULL){break;}
         adhandle = pcap_open_live(d->name, 1000, 1, 300, errbuf);
 		if (pcap_datalink(adhandle) == DLT_EN10MB && d->addresses != NULL) {
             interface_list.push_back(d->name);
 		}
         pcap_close(adhandle);
 	}
+}
 
+
+void packet_handle::print_network_interface(){
     printf("┌────┬─────────────┐\n");
     printf("│ No │ interface   │\n");
     printf("├────┼─────────────┤\n");
@@ -44,22 +34,28 @@ int packet_handle::packet_capture_start(){
         printf("│ %-2d │ %-10s  │\n", i+1, interface_list[i]);
 	}
     printf("└────┴─────────────┘\n");
-    
+}
+
+
+int packet_handle::select_network_interface(){
 	printf("Enter the interface number you would like to sniff : ");
 	scanf("%d", &(this->interface_number));
+}
 
+
+int packet_handle::packet_capture_start(){
+    const char * filter = "port 53 and (udp and (udp[10] & 128 = 0))";     // Recv
     if(this->interface_number <1 || this->interface_number > interface_list.size()){return -3;}   
     strcpy(this->interface_name, interface_list[this->interface_number-1]);
     if (!(adhandle=pcap_open_live(this->interface_name, 65536, 1, 1000, errbuf))) {return -4;}
 	if (pcap_compile(adhandle, &fcode, filter, 1, mask) == -1) {return -5;}
 	if (pcap_setfilter(adhandle, &fcode) == -1) {return -6;}
-    
     pcap_freealldevs(alldevs);
     return 0;
 }
 
 
-void packet_handle::print_capture_info(){
+void packet_handle::print_attack_info(){
     printf("┌───────────────────────────────────────────────────────────────────────────────────────────────────┐\n");
     printf("│            dns-spoofing: linstening on %d [udp dst port 53 and not src %15s]            │\n", this->interface_number, my_ip);
     printf("├────┬─────────────────┬───────┬─────────────────┬───────┬───────────┬────────┬───┬─────────────────┤\n");
@@ -199,15 +195,11 @@ void packet_handle::make_domain(){
     int size_before_dot = dns_data[0], index = 0, size_index = 1;
 
     while(size_before_dot > 0) {
-        int i=0;
-
-        while(i < size_before_dot) {
+        for(int i=0;i<size_before_dot;i++){
             extract_domain[index++] = dns_data[i+size_index];
-            i++;
         }
-
         extract_domain[index++]='.';
-        size_index=size_index+size_before_dot;
+        size_index+=size_before_dot;
         size_before_dot = dns_data[size_index++];
     }
 

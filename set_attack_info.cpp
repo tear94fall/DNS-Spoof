@@ -14,7 +14,7 @@ void set_attack_info::read_info_from_file(){
     if(fp==NULL){return;}
 
     printf("[Read form \'%s\'.... ", this->attack_info_file);
-    const long delay = 1000 * 100;
+    const long delay = 1000 * 70;
 
     for(int i=0;i<10;i++){
         printf("|");usleep(delay);fflush(stdout);printf("\b \b");

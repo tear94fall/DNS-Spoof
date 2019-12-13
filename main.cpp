@@ -31,9 +31,12 @@ int main(int argc, char **argv) {
     pkt_hnd.set_attack_info_file(argv[2]);
     pkt_hnd.read_info_from_file();
     pkt_hnd.set_dom_and_ip();
+    if(print_error_msg(pkt_hnd.set_network_interface())!=0){return 0;}
+    pkt_hnd.print_network_interface();
+    pkt_hnd.select_network_interface();
     if(print_error_msg(pkt_hnd.packet_capture_start())!=0){return 0;}
     pkt_hnd.set_my_ip();
-    pkt_hnd.print_capture_info();
+    pkt_hnd.print_attack_info();
     pkt_hnd.start_capture_loop();
 
     return 0;
