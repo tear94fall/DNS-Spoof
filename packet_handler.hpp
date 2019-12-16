@@ -5,54 +5,19 @@
 #include "set_attack_info.hpp"
 
 class packet_handle : public packets, public set_attack_info{
-    private:
-        struct bpf_program fcode;
-        bpf_u_int32 mask;
-        char errbuf[PCAP_ERRBUF_SIZE];
-        pcap_if_t *alldevs, *d;
-
-        std::vector<char*> interface_list;
-
-        pcap_t *adhandle;
-        struct pcap_pkthdr header;
-        const unsigned char *pkt_data = NULL;
-
-        char source_ip[16];
-        char dest_ip[16];
-        char display_domain[1024];
-        int full_size;
-
-        int sport;
-        int dport;
-        int dns_id;
-
-        char extract_domain[1024];
-        char fake_webserver_ip[16];
-        
-        int interface_number;
-        char interface_name[256];
-        char *my_ip;
-    
     public:
-        void set_my_ip();
-        int set_network_interface();
-        void print_network_interface();
-        int select_network_interface();
+        std::vector<char*> set_network_interface(pcap_t *adhandle, pcap_if_t *alldevs, pcap_if_t *d, char *errbuf);
+        int select_network_interface(std::vector<char*> interface_list);
+        char *get_interface_name(int interface_number, std::vector<char*> interface_list);
+        bool valid_interface_number(int interface_number, std::vector<char*> interface_list);
+        char* set_my_ip(char *interface_name);
+        int start_capture_loop(char* interface_name, struct pcap_pkthdr header, const unsigned char *pkt_data, std::vector<std::string> domain_array, std::vector<std::string> ip_address,  char* my_ip);
 
-        int packet_capture_start();
-        void print_attack_info();
-        void start_capture_loop();
-        void set_protocol_header();
-        void set_attack_data();
-        void print_attack_success();
-
-        void set_attack_ip_header();
-        void set_attack_udp_header();
-
-        void packet_handler();
-        void make_domain();
-        void sned_dns_packet(char *target_ip, int port, unsigned char *dns_packet,int size);
-        bool compare_domain(const char *target_domain);
+        void print_attack_success(struct pcap_pkthdr header, const unsigned char *pkt_data, char *extract_domain, char *fake_webserver_ip, char* my_ip, int full_size);
+        int packet_handler(struct pcap_pkthdr header, const unsigned char *pkt_data, char *extract_domain, std::vector<std::string> domain_array, std::vector<std::string> ip_addr_array, char* my_ip);
+        char* make_domain(struct pcap_pkthdr header, const unsigned char *pkt_data);
+        int sned_dns_packet(char *target_ip, int port, unsigned char *dns_packet,int size);
+        bool compare_domain(const char *target_domain, std::vector<std::string> domain_list);
 };
 
 #endif

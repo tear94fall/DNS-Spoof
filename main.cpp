@@ -4,7 +4,7 @@
 #define NETWORK_INTERFACE_OPEN_ERROR -4
 #define FILTER_INVALID_SYNTAX_ERROR -5
 #define FILTER_ADAPTION_ERROR -6
-#define CONFIG_SETTING_END 0
+#define LOPP_END 0
 
 #include "packet_handler.hpp"
 
@@ -15,6 +15,28 @@ int print_error_msg(int error_code);
 int main(int argc, char **argv) {
     if(check_permission()<0){return 0;}
     if(check_args(argc, argv)<0){return 0;}
+
+    packet_handle pkt_hnd = packet_handle();
+    
+    struct bpf_program fcode;
+    char errbuf[PCAP_ERRBUF_SIZE];
+    pcap_if_t *alldevs, *d;
+    pcap_t *adhandle;
+
+    std::vector<std::pair<std::string, std::string> > attack_list = pkt_hnd.read_info_from_file(argv[2]);
+    if(attack_list.size()<1){
+        print_error_msg(-1);
+        return 0;
+    }
+
+    std::vector<std::string> ip_array = pkt_hnd.get_ip_address_from_list(attack_list);
+    std::vector<std::string> domain_array = pkt_hnd.get_domain_from_list(attack_list);
+
+    std::vector<char *> interface_list = pkt_hnd.set_network_interface(adhandle, alldevs, d, errbuf);
+    if(interface_list.size()<1){
+        print_error_msg(-2);
+        return 0;
+    }
 
     printf(ANSI_COLOR_YELLOW "                                                                              ,...,,                      \n" ANSI_COLOR_RESET);
     printf(ANSI_COLOR_YELLOW "`7MM\"\"\"Yb. `7MN.   `7MF'.M\"\"\"bgd      .M\"\"\"bgd                              .d' \"\"db                      \n" ANSI_COLOR_RESET);
@@ -27,17 +49,20 @@ int main(int argc, char **argv) {
     printf(ANSI_COLOR_YELLOW "                                               MM                                                6'     dP\n" ANSI_COLOR_RESET);
     printf(ANSI_COLOR_YELLOW "                                             .JMML.                                              Ybmmmd'  \n" ANSI_COLOR_RESET);
 
-    packet_handle pkt_hnd = packet_handle();
-    pkt_hnd.set_attack_info_file(argv[2]);
-    pkt_hnd.read_info_from_file();
-    pkt_hnd.set_dom_and_ip();
-    if(print_error_msg(pkt_hnd.set_network_interface())!=0){return 0;}
-    pkt_hnd.print_network_interface();
-    pkt_hnd.select_network_interface();
-    if(print_error_msg(pkt_hnd.packet_capture_start())!=0){return 0;}
-    pkt_hnd.set_my_ip();
-    pkt_hnd.print_attack_info();
-    pkt_hnd.start_capture_loop();
+    int interface_number = pkt_hnd.select_network_interface(interface_list);
+    if(!pkt_hnd.valid_interface_number(interface_number, interface_list)){
+        print_error_msg(-3);
+        return 0;
+    }
+
+    char* interface_name = pkt_hnd.get_interface_name(interface_number, interface_list);
+    char* my_ip = pkt_hnd.set_my_ip(interface_name);
+    
+    struct pcap_pkthdr header;
+    const unsigned char *pkt_data;
+    
+    int loop_end = pkt_hnd.start_capture_loop(interface_name, header, pkt_data, domain_array, ip_array, my_ip);
+    print_error_msg(loop_end);
 
     return 0;
 }
@@ -88,11 +113,15 @@ int print_error_msg(int error_code){
         case FILTER_ADAPTION_ERROR:
             strcpy(error_message, "Can't setting the filer. please retry...");
             break;
-        case CONFIG_SETTING_END:
+        case LOPP_END:
             return 0;
     }
 
-    printf("ERROR: %s\nExit program...\n", error_message);
+    if(error_code<0){
+        printf("ERROR: %s\nExit program...\n", error_message);
+    }else{
+        printf("Goob Bye~!\n");
+    }
 
     return error_code;
 }

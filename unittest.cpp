@@ -2,16 +2,14 @@
 #include <gtest/gtest.h>
 #include "packet_handler.hpp"
 
-TEST(attack_test, capture_test) {
+TEST(aaaa, aaaa){
+    char file_name[256] = "info";
+    
     packet_handle pkt_hnd = packet_handle();
-    char file_name[128] = "info";
-
-    EXPECT_NO_THROW(pkt_hnd.set_attack_info_file(file_name));
-    EXPECT_NO_THROW(pkt_hnd.read_info_from_file());
-    EXPECT_NO_THROW(pkt_hnd.set_dom_and_ip());
-    EXPECT_EQ(0, pkt_hnd.packet_capture_start());
-    EXPECT_NO_THROW(pkt_hnd.set_my_ip());
-    EXPECT_NO_THROW(pkt_hnd.print_capture_info());
+    std::vector<std::pair<std::string, std::string> > attack_list = pkt_hnd.read_info_from_file(file_name);
+    EXPECT_EQ(attack_list, pkt_hnd.read_info_from_file(file_name));
+    attack_list.pop_back();
+    EXPECT_NE(attack_list, pkt_hnd.read_info_from_file(file_name));
 }
 
 int main(int argc, char **argv) {

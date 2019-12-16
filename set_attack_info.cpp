@@ -1,27 +1,23 @@
 #include "set_attack_info.hpp"
 
-void set_attack_info::set_attack_info_file(char* file_name){
-    this->attack_info_file=file_name;
-}
 
-
-void set_attack_info::read_info_from_file(){
+std::vector<std::pair<std::string, std::string> > set_attack_info::read_info_from_file(char *attack_info_file){
     std::vector<std::pair<std::string, std::string> > vec;
     char line[256];
     int valid_cnt=0, invalid_cnt=0;
 
-    FILE *fp = fopen(this->attack_info_file, "r"); 
-    if(fp==NULL){return;}
+    FILE *fp = fopen(attack_info_file, "r"); 
+    if(fp==NULL){return vec;}
 
-    printf("[Read form \'%s\'.... ", this->attack_info_file);
-    const long delay = 1000 * 70;
+    printf("[Read form \'%s\'.... ", attack_info_file);
+    // const long delay = 1000 * 70;
 
-    for(int i=0;i<10;i++){
-        printf("|");usleep(delay);fflush(stdout);printf("\b \b");
-        printf("/");usleep(delay);fflush(stdout);printf("\b \b");
-        printf("─");usleep(delay);fflush(stdout);printf("\b \b");
-        printf("\\");usleep(delay);fflush(stdout);printf("\b \b");
-    }
+    // for(int i=0;i<10;i++){
+    //     printf("|");usleep(delay);fflush(stdout);printf("\b \b");
+    //     printf("/");usleep(delay);fflush(stdout);printf("\b \b");
+    //     printf("─");usleep(delay);fflush(stdout);printf("\b \b");
+    //     printf("\\");usleep(delay);fflush(stdout);printf("\b \b");
+    // }
     printf("END!]\n");
 
     while(!feof(fp)){
@@ -44,20 +40,30 @@ void set_attack_info::read_info_from_file(){
     printf("Invalid [" ANSI_COLOR_RED "%d" ANSI_COLOR_RESET "], Valid [" ANSI_COLOR_GREEN "%d" ANSI_COLOR_RESET "]\n", invalid_cnt, valid_cnt);
     
     fclose(fp);
-    this->attack_list = vec;
+
+    return vec;
 }
 
 
-void set_attack_info::set_dom_and_ip(){
-    std::vector<std::string> temp_web_arr, temp_domain;
-    
+std::vector<std::string> set_attack_info::get_ip_address_from_list(std::vector<std::pair<std::string, std::string> > attack_list){
+    std::vector<std::string> temp_web_arr;
+
     for(int i=0;i<attack_list.size();i++){
         temp_web_arr.push_back(attack_list[i].first);
+    }
+
+    return temp_web_arr;
+}
+
+
+std::vector<std::string> set_attack_info::get_domain_from_list(std::vector<std::pair<std::string, std::string> > attack_list){
+    std::vector<std::string> temp_domain;
+    
+    for(int i=0;i<attack_list.size();i++){
         temp_domain.push_back(attack_list[i].second);
     }
 
-    this->fake_web_server_array = temp_web_arr;
-    this->domain_array = temp_domain;
+    return temp_domain;
 }
 
 
@@ -69,14 +75,4 @@ bool set_attack_info::validation_check_ip_addr(std::string ip_addr){
 
 void set_attack_info::trim(std::string& str) {
     str.erase(std::remove(str.begin(), str.end(), ' '), str.end());
-}
-
-
-std::vector<std::pair<std::string, std::string> > set_attack_info::get_attack_list(void){
-    return this->attack_list;
-}
-
-
-std::vector<std::string> set_attack_info::get_domain_array(){
-    return this->domain_array;
 }
