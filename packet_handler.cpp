@@ -22,6 +22,7 @@ std::vector<char*> packet_handle::set_network_interface(pcap_t *adhandle, pcap_i
 		if (pcap_datalink(adhandle) == DLT_EN10MB && d->addresses != NULL) {
             interface_list.push_back(d->name);
 		}
+        pcap_close(adhandle);
 	}
 
     return interface_list;
@@ -46,19 +47,12 @@ int packet_handle::select_network_interface(std::vector<char*> interface_list){
 
 
 char *packet_handle::get_interface_name(int interface_number, std::vector<char*> interface_list){
-    char* interface_name;
-    strcpy(interface_name, interface_list[interface_number-1]);
-
-    return interface_name;
+    return interface_list[interface_number-1];
 }
 
 
 bool packet_handle::valid_interface_number(int interface_number, std::vector<char*> interface_list){
-    if(interface_number > 0 && interface_number < interface_list.size()+1){
-        return true;
-    }else{
-        return false;
-    }
+    return (interface_number > 0 && interface_number < interface_list.size()+1) ? true : false;
 }
 
 
@@ -131,14 +125,14 @@ void packet_handle::print_attack_success(struct pcap_pkthdr header, const unsign
         printf("\b \b");
     }
     printf("├────┼─────────────────┼───────┼─────────────────┼───────┼───────────┼────────┼───┼─────────────────┤\n");
-    printf("│Recv│ %-16s│ %-5d │ %-16s│ %-5d │ %3d Bytes │ 0x%-4x │ Q │ %-16s│\n", source_ip, sport, dest_ip, dport, header.caplen,dns_id, display_domain);
-    printf("│Send│ %-16s│ %-5d │ %-16s│ %-5d │ %3d Bytes │ 0x%-4x │ A │ %-16s│\n", my_ip, dport, source_ip, sport, full_size, dns_id, fake_webserver_ip);
+    printf("│Recv│ %-16s│ %-5d │ %-16s│ %-5d │ %3d Bytes │ 0x%-4x │ Q │ %-16s│\n", dest_ip, dport, source_ip, sport, header.caplen,dns_id, display_domain);
+    printf("│Send│ %-16s│ %-5d │ %-16s│ %-5d │ %3d Bytes │ 0x%-4x │ A │ %-16s│\n", my_ip, sport, dest_ip, dport, full_size+sizeof(ether_header), dns_id, fake_webserver_ip);
     printf("└────┴─────────────────┴───────┴─────────────────┴───────┴───────────┴────────┴───┴─────────────────┘");
     fflush(stdout);
 }
 
 
-int packet_handle::packet_handler(struct pcap_pkthdr header, const unsigned char *pkt_data, char *extract_domain, std::vector<std::string> domain_array, std::vector<std::string> ip_addr_array, char* my_ip) {
+int packet_handle::packet_handler(struct pcap_pkthdr header, const unsigned char *pkt_data, char *extract_domain, std::vector<std::string> domain_array, std::vector<std::string> ip_addr_array, char* my_ip) {    
     ether_header *eth = (ether_header*)(pkt_data);
     ip_header *ip = (ip_header *)(pkt_data + sizeof(ether_header));
     udp_header *udp = (udp_header *)(pkt_data + sizeof(ether_header) + sizeof(ip_header));

@@ -8,6 +8,7 @@
 
 #include "packet_handler.hpp"
 
+void print_logo(void);
 int check_permission(void);
 int check_args(int argc, char **argv);
 int print_error_msg(int error_code);
@@ -15,13 +16,14 @@ int print_error_msg(int error_code);
 int main(int argc, char **argv) {
     if(check_permission()<0){return 0;}
     if(check_args(argc, argv)<0){return 0;}
-
-    packet_handle pkt_hnd = packet_handle();
     
     struct bpf_program fcode;
     char errbuf[PCAP_ERRBUF_SIZE];
     pcap_if_t *alldevs, *d;
     pcap_t *adhandle;
+
+    print_logo();
+    packet_handle pkt_hnd = packet_handle();
 
     std::vector<std::pair<std::string, std::string> > attack_list = pkt_hnd.read_info_from_file(argv[2]);
     if(attack_list.size()<1){
@@ -37,17 +39,6 @@ int main(int argc, char **argv) {
         print_error_msg(-2);
         return 0;
     }
-
-    printf(ANSI_COLOR_YELLOW "                                                                              ,...,,                      \n" ANSI_COLOR_RESET);
-    printf(ANSI_COLOR_YELLOW "`7MM\"\"\"Yb. `7MN.   `7MF'.M\"\"\"bgd      .M\"\"\"bgd                              .d' \"\"db                      \n" ANSI_COLOR_RESET);
-    printf(ANSI_COLOR_YELLOW "  MM    `Yb. MMN.    M ,MI    \"Y     ,MI    \"Y                              dM`                           \n" ANSI_COLOR_RESET);
-    printf(ANSI_COLOR_YELLOW "  MM     `Mb M YMb   M `MMb.         `MMb.   `7MMpdMAo.  ,pW\"Wq.   ,pW\"Wq. mMMmm`7MM  `7MMpMMMb.  .P\"Ybmmm\n" ANSI_COLOR_RESET);
-    printf(ANSI_COLOR_YELLOW "  MM      MM M  `MN. M   `YMMNq.       `YMMNq. MM   `Wb 6W'   `Wb 6W'   `Wb MM    MM    MM    MM :MI  I8  \n" ANSI_COLOR_RESET);
-    printf(ANSI_COLOR_YELLOW "  MM     ,MP M   `MM.M .     `MM     .     `MM MM    M8 8M     M8 8M     M8 MM    MM    MM    MM  WmmmP\"  \n" ANSI_COLOR_RESET);
-    printf(ANSI_COLOR_YELLOW "  MM    ,dP' M     YMM Mb     dM     Mb     dM MM   ,AP YA.   ,A9 YA.   ,A9 MM    MM    MM    MM 8M       \n" ANSI_COLOR_RESET);
-    printf(ANSI_COLOR_YELLOW ".JMMmmmdP' .JML.    YM P\"Ybmmd\"      P\"Ybmmd\"  MMbmmd'   `Ybmd9'   `Ybmd9'.JMML..JMML..JMML  JMML.YMMMMMb \n" ANSI_COLOR_RESET);
-    printf(ANSI_COLOR_YELLOW "                                               MM                                                6'     dP\n" ANSI_COLOR_RESET);
-    printf(ANSI_COLOR_YELLOW "                                             .JMML.                                              Ybmmmd'  \n" ANSI_COLOR_RESET);
 
     int interface_number = pkt_hnd.select_network_interface(interface_list);
     if(!pkt_hnd.valid_interface_number(interface_number, interface_list)){
@@ -65,6 +56,20 @@ int main(int argc, char **argv) {
     print_error_msg(loop_end);
 
     return 0;
+}
+
+
+void print_logo(void){
+    printf(ANSI_COLOR_YELLOW "                                                                              ,...,,                      \n" ANSI_COLOR_RESET);
+    printf(ANSI_COLOR_YELLOW "`7MM\"\"\"Yb. `7MN.   `7MF'.M\"\"\"bgd      .M\"\"\"bgd                              .d' \"\"db                      \n" ANSI_COLOR_RESET);
+    printf(ANSI_COLOR_YELLOW "  MM    `Yb. MMN.    M ,MI    \"Y     ,MI    \"Y                              dM`                           \n" ANSI_COLOR_RESET);
+    printf(ANSI_COLOR_YELLOW "  MM     `Mb M YMb   M `MMb.         `MMb.   `7MMpdMAo.  ,pW\"Wq.   ,pW\"Wq. mMMmm`7MM  `7MMpMMMb.  .P\"Ybmmm\n" ANSI_COLOR_RESET);
+    printf(ANSI_COLOR_YELLOW "  MM      MM M  `MN. M   `YMMNq.       `YMMNq. MM   `Wb 6W'   `Wb 6W'   `Wb MM    MM    MM    MM :MI  I8  \n" ANSI_COLOR_RESET);
+    printf(ANSI_COLOR_YELLOW "  MM     ,MP M   `MM.M .     `MM     .     `MM MM    M8 8M     M8 8M     M8 MM    MM    MM    MM  WmmmP\"  \n" ANSI_COLOR_RESET);
+    printf(ANSI_COLOR_YELLOW "  MM    ,dP' M     YMM Mb     dM     Mb     dM MM   ,AP YA.   ,A9 YA.   ,A9 MM    MM    MM    MM 8M       \n" ANSI_COLOR_RESET);
+    printf(ANSI_COLOR_YELLOW ".JMMmmmdP' .JML.    YM P\"Ybmmd\"      P\"Ybmmd\"  MMbmmd'   `Ybmd9'   `Ybmd9'.JMML..JMML..JMML  JMML.YMMMMMb \n" ANSI_COLOR_RESET);
+    printf(ANSI_COLOR_YELLOW "                                               MM                                                6'     dP\n" ANSI_COLOR_RESET);
+    printf(ANSI_COLOR_YELLOW "                                             .JMML.                                              Ybmmmd'  \n" ANSI_COLOR_RESET);
 }
 
 
@@ -114,13 +119,12 @@ int print_error_msg(int error_code){
             strcpy(error_message, "Can't setting the filer. please retry...");
             break;
         case LOPP_END:
+            printf("ERROR: network interface Disconnect. retry...\n");
             return 0;
     }
 
     if(error_code<0){
         printf("ERROR: %s\nExit program...\n", error_message);
-    }else{
-        printf("Goob Bye~!\n");
     }
 
     return error_code;
