@@ -1,9 +1,20 @@
 # DNS-Spoof
 Linux DNS Spoofing tool  
 
-* demo 
-<img src="/demo.gif" >  
-* You must arp-spoofing before dns-spoofing, and need fake web server.
+### Development Environment
+| Subject | Name | Version |
+|:--------:|:--------:|:--------:|
+| OS | CentOS | 7 |
+| Language | C++ | 11 |
+| Library | Libpcap | 1.9.1 |
+| Compiler | g++ | 4.8.5 |
+
+### Image
+<img src="start.png" >  
+
+### Demo 
+<img src="/demo.gif" >   
+* You must arp-spoofing before dns-spoofing, and need fake web server.  
 
 1. Clone this project
 ```
