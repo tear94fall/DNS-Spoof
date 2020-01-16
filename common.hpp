@@ -13,4 +13,5 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <pwd.h>
+#include <getopt.h>
 #include <pcap.h>

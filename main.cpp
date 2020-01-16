@@ -6,14 +6,18 @@
 #define FILTER_ADAPTION_ERROR -6
 #define LOPP_END 0
 
+const char *DNS_SPOOF_VERSION = "0.0.1";
+
 #include "packet_handler.hpp"
 
 void print_logo(void);
+bool check_endian(void);
 int check_permission(void);
 int check_args(int argc, char **argv);
 int print_error_msg(int error_code);
 
 int main(int argc, char **argv) {
+    if(check_endian()){return 0;}
     if(check_permission()<0){return 0;}
     if(check_args(argc, argv)<0){return 0;}
     
@@ -73,6 +77,17 @@ void print_logo(void){
 }
 
 
+bool check_endian(void){
+    int a = 0x01234567;
+    if(!*((char*)&a) == 0x67){
+        printf("ERROR: This system is Big Endian system...\n");
+        return true;
+    }else{
+        return false;
+    }
+}
+
+
 int check_permission(void){
     uid_t          user_id;
     struct passwd *user_pw;
@@ -89,11 +104,32 @@ int check_permission(void){
 
 
 int check_args(int argc, char **argv){
-    if (argc != 3 || strcmp(argv[1], "-f")!=0) {
-        printf("ERROR: Invalid arguments\nUsage: ./main -f <attack info file>\n");
-        return -1;
-    }
-    return 0;
+    struct option long_option[] = {
+	    { "file", required_argument, 0, 'f' },
+        { "version", no_argument, 0, 'v' },
+        { "help", no_argument, 0, 'h' },
+        { 0, 0, 0, 0}
+    };
+    int option_index;
+	int flag = getopt_long(argc, argv, "vhf:", long_option, &option_index);
+    
+    switch (flag){
+		case 'f' :
+            return 0;
+        case 'h':
+            printf("Usage: ./app_name [options] required_input\n");
+            printf("options:\n");
+            printf("    -f, --file       attack_info_file\n");
+            printf("    -h, --help       no_args\n");
+            printf("    -v, --version    no_args\n");
+            return -1;
+        case 'v':
+            printf("dnsspoof version %s\n", DNS_SPOOF_VERSION);
+            return -1;
+		default :
+            printf("ERROR: Invalid arguments\nUsage: ./main -f <attack info file>\n");
+            return -1;
+	}
 }
 
 
